@@ -1,0 +1,91 @@
+"""Shared style catalog for the db-erd-chen skill (mirrors references/erd-guide.md section 4.5).
+
+Change styles HERE only; render_erd.py and validate_erd.py both import this module.
+"""
+
+ENTITY = ("whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;"
+          "fontStyle=1;fontSize=13;")
+WEAK_ENTITY = "shape=ext;margin=3;double=1;" + ENTITY
+REF_SUFFIX = "dashed=1;fillColor=#f5f5f5;strokeColor=#999999;fontColor=#666666;fontStyle=3;"
+REF_ENTITY = ENTITY + REF_SUFFIX
+REF_WEAK_ENTITY = WEAK_ENTITY + REF_SUFFIX
+RELATIONSHIP = ("shape=rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;align=center;"
+                "fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;")
+ID_RELATIONSHIP = ("shape=rhombus;double=1;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;"
+                   "align=center;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;")
+ATTRIBUTE = ("ellipse;whiteSpace=wrap;html=1;align=center;fillColor=#ffffff;strokeColor=#666666;"
+             "fontSize=11;")
+KEY_ATTRIBUTE = ATTRIBUTE + "fontStyle=4;"
+MULTIVALUED = ("ellipse;shape=doubleEllipse;margin=3;whiteSpace=wrap;html=1;align=center;"
+               "fillColor=#ffffff;strokeColor=#666666;fontSize=11;")
+DERIVED = ATTRIBUTE + "dashed=1;"
+SUB_ATTRIBUTE = ("ellipse;whiteSpace=wrap;html=1;align=center;fillColor=#f8f8f8;strokeColor=#999999;"
+                 "fontSize=10;")
+ATTR_EDGE = "endArrow=none;html=1;rounded=0;strokeColor=#888888;"
+PARTIAL_EDGE = "endArrow=none;html=1;rounded=0;fontStyle=1;fontSize=13;labelBackgroundColor=#ffffff;"
+TOTAL_EDGE = "shape=link;html=1;rounded=0;fontStyle=1;fontSize=13;labelBackgroundColor=#ffffff;"
+NOTE = ("shape=note;whiteSpace=wrap;html=1;size=14;align=left;spacingLeft=6;spacingRight=6;"
+        "fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;")
+TEXT = "text;html=1;align=left;verticalAlign=top;fontSize=11;whiteSpace=wrap;"
+LEGEND = TEXT + "strokeColor=#999999;fillColor=#fafafa;spacing=8;"
+
+PARTIAL_KEY_TEMPLATE = '<span style="border-bottom: 1px dashed;">{}</span>'
+
+# kind -> (style, width, height); None size = free
+VERTEX_CATALOG = {
+    "entity": (ENTITY, 150, 56),
+    "weak_entity": (WEAK_ENTITY, 150, 56),
+    "ref_entity": (REF_ENTITY, 150, 56),
+    "ref_weak_entity": (REF_WEAK_ENTITY, 150, 56),
+    "relationship": (RELATIONSHIP, 130, 74),
+    "id_relationship": (ID_RELATIONSHIP, 130, 74),
+    "attribute": (ATTRIBUTE, 124, 44),
+    "key_attribute": (KEY_ATTRIBUTE, 124, 44),
+    "partial_key": (ATTRIBUTE, 124, 44),
+    "multivalued": (MULTIVALUED, 124, 44),
+    "derived": (DERIVED, 124, 44),
+    "sub_attribute": (SUB_ATTRIBUTE, 104, 34),
+    "note": (NOTE, 300, 90),
+    "title": (TEXT, None, None),
+    "legend": (LEGEND, None, None),
+}
+EDGE_CATALOG = {
+    "attr_edge": ATTR_EDGE,
+    "partial_edge": PARTIAL_EDGE,
+    "total_edge": TOTAL_EDGE,
+}
+
+LEGEND_HTML = (
+    "<b>Legend (Chen notation)</b><br>"
+    "Rectangle: entity<br>"
+    "Double rectangle: weak entity<br>"
+    "Diamond: relationship<br>"
+    "Double diamond: identifying relationship<br>"
+    "Ellipse: attribute<br>"
+    "<u>Underlined</u>: key attribute<br>"
+    "<span style=\"border-bottom: 1px dashed;\">Dashed underline</span>: partial key<br>"
+    "Double ellipse: multivalued attribute<br>"
+    "Dashed ellipse: derived attribute<br>"
+    "Ellipse with child ellipses: composite attribute<br>"
+    "Single line: partial (optional) participation<br>"
+    "Double line: total (mandatory) participation<br>"
+    "1 / N / M next to an entity: cardinality of that entity<br>"
+    "Pink note: constraint or business rule<br>"
+    "Grey dashed rectangle: reference entity (attributes on its home page)"
+)
+
+
+def parse_style(style):
+    """Parse a draw.io style string into an ordered dict; later keys override earlier ones.
+    Bare tokens (e.g. 'ellipse', 'text') are stored with value None."""
+    out = {}
+    for tok in (style or "").split(";"):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            out[k.strip()] = v.strip()
+        else:
+            out[tok] = None
+    return out

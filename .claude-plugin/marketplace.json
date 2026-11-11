@@ -1,0 +1,22 @@
+{
+  "name": "xemiq-agent-skills",
+  "owner": {
+    "name": "XemiQ",
+    "url": "https://github.com/xemiq"
+  },
+  "metadata": {
+    "description": "Agent skills by XemiQ for software and database design.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "db-design",
+      "description": "Database design skills: conceptual ERDs in Chen notation as diagrams.net files, with clarifying questions and validation.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/db-erd-chen"
+      ]
+    }
+  ]
+}

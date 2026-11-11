@@ -1,0 +1,112 @@
+{
+  "project": "Task Tracker",
+  "source": "Domain description (examples/task-tracker/input.md) plus answers to 7 clarifying questions",
+  "entities": [
+    {
+      "id": "team", "name": "Team",
+      "attributes": [
+        {"name": "Team name", "kind": "key"},
+        {"name": "Created on"}
+      ]
+    },
+    {
+      "id": "user", "name": "User",
+      "attributes": [
+        {"name": "Email", "kind": "key"},
+        {"name": "Full name", "kind": "composite", "parts": ["First name", "Last name"]},
+        {"name": "Phone numbers", "kind": "multivalued"},
+        {"name": "Is active"}
+      ]
+    },
+    {
+      "id": "project", "name": "Project",
+      "attributes": [
+        {"name": "Project code", "kind": "key"},
+        {"name": "Name"},
+        {"name": "Start date"},
+        {"name": "Total estimated hours", "kind": "derived"}
+      ]
+    },
+    {
+      "id": "task", "name": "Task", "weak": true,
+      "attributes": [
+        {"name": "Task #", "kind": "partial_key"},
+        {"name": "Title"},
+        {"name": "Status"},
+        {"name": "Estimated hours"}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "memberof", "name": "Member of",
+      "ends": [
+        {"entity": "user", "card": "M", "total": false},
+        {"entity": "team", "card": "N", "total": true}
+      ],
+      "attributes": [{"name": "Team role"}]
+    },
+    {
+      "id": "owns", "name": "Owns",
+      "ends": [
+        {"entity": "team", "card": "1", "total": false},
+        {"entity": "project", "card": "N", "total": true}
+      ]
+    },
+    {
+      "id": "contains", "name": "Contains", "identifying": true,
+      "ends": [
+        {"entity": "project", "card": "1", "total": false},
+        {"entity": "task", "card": "N", "total": true}
+      ]
+    },
+    {
+      "id": "assignedto", "name": "Assigned to",
+      "ends": [
+        {"entity": "user", "card": "1", "total": false},
+        {"entity": "task", "card": "N", "total": false}
+      ]
+    },
+    {
+      "id": "mentors", "name": "Mentors",
+      "ends": [
+        {"entity": "user", "card": "1", "role": "mentor", "total": false},
+        {"entity": "user", "card": "N", "role": "mentee", "total": false}
+      ]
+    }
+  ],
+  "notes": [
+    {"text": "Constraint: A User has at least one phone number."},
+    {"text": "Constraint: Task status is one of To do, In progress, Done."},
+    {"text": "Rule: A user cannot mentor themselves."}
+  ],
+  "assumptions": [
+    {"text": "Team name is unique across the company and identifies a Team.", "confirmed_by": "stated"},
+    {"text": "Every project belongs to exactly one team (total participation of Project in Owns).", "confirmed_by": "stated"},
+    {"text": "Tasks are numbered within their project, so Task is a weak entity of Project with partial key Task #.", "confirmed_by": "stated"},
+    {"text": "Every team has at least one member (total participation of Team in Member of).", "confirmed_by": "user"},
+    {"text": "A task is assigned to at most one user; unassigned tasks are allowed.", "confirmed_by": "user"},
+    {"text": "A user can have many tasks assigned.", "confirmed_by": "user"},
+    {"text": "A user can belong to several teams.", "confirmed_by": "user"},
+    {"text": "Partial participation, shown as (default) in the confirmed draft: User in Member of, Project in Contains, User and Task in Assigned to, both ends of Mentors.", "confirmed_by": "user"},
+    {"text": "A user has at most one mentor and may mentor many users.", "confirmed_by": "user"},
+    {"text": "The role is held per team membership, so Team role is an attribute of Member of.", "confirmed_by": "user"},
+    {"text": "Task status values are To do, In progress, Done.", "confirmed_by": "user"},
+    {"text": "A user cannot mentor themselves.", "confirmed_by": "user"},
+    {"text": "Created on (Team) and Is active (User) are business data requested in the description, not technical audit columns.", "confirmed_by": "stated"}
+  ],
+  "omitted": [],
+  "open_questions": [
+    "Must every team own at least one project? Drawn as partial participation until confirmed."
+  ],
+  "layout": {
+    "main": {
+      "positions": {
+        "user": [0, 0],
+        "team": [1.6, 0],
+        "task": [0, 1.3],
+        "project": [1.6, 1.3]
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "project": "Order Management",
+  "source": "Test fixture: multi-page model",
+  "areas": [
+    {"id": "sales", "name": "Sales"},
+    {"id": "catalog", "name": "Catalog"},
+    {"id": "people", "name": "People"}
+  ],
+  "entities": [
+    {"id": "customer", "name": "Customer", "area": "sales", "attributes": [
+      {"name": "Email", "kind": "key"}, {"name": "Name"},
+      {"name": "Address", "kind": "composite", "parts": ["Street", "City", "Postal code"]},
+      {"name": "Phone numbers", "kind": "multivalued"}]},
+    {"id": "order", "name": "Order", "area": "sales", "attributes": [
+      {"name": "Order ID", "kind": "key"}, {"name": "Order date"}, {"name": "Status"},
+      {"name": "Order total", "kind": "derived"}]},
+    {"id": "orderline", "name": "Order Line", "area": "sales", "weak": true, "attributes": [
+      {"name": "Line #", "kind": "partial_key"}, {"name": "Quantity"}, {"name": "Unit price"}]},
+    {"id": "invoice", "name": "Invoice", "area": "sales", "attributes": [
+      {"name": "Invoice number", "kind": "key"}, {"name": "Issued on"}]},
+    {"id": "product", "name": "Product", "area": "catalog", "attributes": [
+      {"name": "SKU", "kind": "key"}, {"name": "Name"}, {"name": "Tags", "kind": "multivalued"},
+      {"name": "Is active"}]},
+    {"id": "warehouse", "name": "Warehouse", "area": "catalog", "attributes": [
+      {"name": "Warehouse code", "kind": "key"}, {"name": "City"}]},
+    {"id": "employee", "name": "Employee", "area": "people", "attributes": [
+      {"name": "Employee number", "kind": "key"}, {"name": "Full name"}, {"name": "Hired on"}]}
+  ],
+  "relationships": [
+    {"id": "places", "name": "Places", "ends": [
+      {"entity": "customer", "card": "1"}, {"entity": "order", "card": "N", "total": true}]},
+    {"id": "contains", "name": "Contains", "identifying": true, "ends": [
+      {"entity": "order", "card": "1"}, {"entity": "orderline", "card": "N", "total": true}]},
+    {"id": "refersto", "name": "Refers to", "ends": [
+      {"entity": "orderline", "card": "N", "total": true}, {"entity": "product", "card": "1"}]},
+    {"id": "billedby", "name": "Billed by", "ends": [
+      {"entity": "order", "card": "1"}, {"entity": "invoice", "card": "1", "total": true}]},
+    {"id": "storedin", "name": "Stored in", "pages": ["catalog"], "ends": [
+      {"entity": "product", "card": "M"}, {"entity": "warehouse", "card": "N"}],
+      "attributes": [{"name": "Quantity on hand"}]},
+    {"id": "creates", "name": "Creates", "pages": ["people"], "ends": [
+      {"entity": "employee", "card": "1"}, {"entity": "order", "card": "N"}]},
+    {"id": "approves", "name": "Approves", "pages": ["people"], "ends": [
+      {"entity": "employee", "card": "1"}, {"entity": "order", "card": "N"}]},
+    {"id": "manages", "name": "Manages", "ends": [
+      {"entity": "employee", "card": "1", "role": "manager"},
+      {"entity": "employee", "card": "N", "role": "report"}]}
+  ],
+  "notes": [
+    {"text": "Constraint: An Order can be approved only by an Employee other than its creator.", "pages": ["people"]},
+    {"text": "Rule: A Product has between 1 and 5 images.", "pages": ["catalog"]}
+  ],
+  "assumptions": [{"text": "Every order has exactly one customer.", "confirmed_by": "schema"}],
+  "open_questions": ["Can an Invoice cover several Orders?"],
+  "layout": {
+    "overview": {"positions": {"customer": [0, 0], "order": [1, 0], "orderline": [2, 0],
+                                "product": [3, 0], "invoice": [1, 1], "employee": [0, 1.4],
+                                "warehouse": [3, 1]}},
+    "sales": {"positions": {"customer": [0, 0], "order": [1, 0], "orderline": [2, 0],
+                             "product": [2, 1], "invoice": [1, 1]}},
+    "catalog": {"positions": {"product": [0, 0], "warehouse": [1, 0]}},
+    "people": {"positions": {"employee": [0, 0], "order": [1, 0]}}
+  }
+}
