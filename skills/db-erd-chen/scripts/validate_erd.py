@@ -56,6 +56,9 @@ PHYSICAL_RES = [
     (re.compile(r"^[a-z]+[A-Z][A-Za-z0-9]*$"), "camelCase (physical) name"),
 ]
 FK_RE = re.compile(r"^(.+?)[ _]?(ID|Id|id)$")
+FK_PREFIX_RE = re.compile(r"^(?:ID|Id|id)[ _](?:de[ _]la[ _]|del[ _]|de[ _]|du[ _]|da[ _]|do[ _])?(.+)$")  # "ID de Dueño"
+SMALL_WORDS = {"de", "del", "la", "las", "el", "los", "y", "e", "o", "en", "con", "por", "para", "a",
+               "of", "and", "or", "the", "for", "per", "to", "in", "on", "da", "do", "du", "des", "et"}
 
 
 class Report:
@@ -403,11 +406,12 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
                     rep.err(pname, f"entity {n!r} needs exactly one underlined key attribute "
                                    f"(found {kinds.count('key_attribute')})")
         words = n.split()
-        if words and any(w[0].isalpha() and not w[0].isupper() for w in words):
+        if words and any(w[0].isalpha() and not w[0].isupper() and (i == 0 or w.lower() not in SMALL_WORDS)
+                         for i, w in enumerate(words)):
             rep.warn(pname, f"entity {n!r} should be a singular noun in Title Case")
         for a in attrs:
             an = name_of[a]
-            mm = FK_RE.match(an)
+            mm = FK_RE.match(an) or FK_PREFIX_RE.match(an)
             ref = mm.group(1).strip().lower() if mm else None
             if ref and ref in all_entity_names and ref != n.lower():
                 rep.err(pname, f"attribute {an!r} of {n!r} references entity {mm.group(1)!r}: "
@@ -425,13 +429,13 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
                     break
         if v["kind"] == "note":
             t = name_of[cid]
-            if not (t.startswith("Constraint:") or t.startswith("Rule:")):
-                rep.err(pname, f"note {cid} must start with 'Constraint:' or 'Rule:'")
+            if not any(t.startswith(x) for x in C.NOTE_PREFIXES):
+                rep.err(pname, f"note {cid} must start with one of {C.NOTE_PREFIXES}")
 
     titles = [c for c, v in verts.items() if v["kind"] == "title"]
     legends = [c for c, v in verts.items() if v["kind"] == "legend"]
-    if not any("Conceptual ERD" in name_of[t] for t in titles):
-        rep.err(pname, "page needs a title text containing '<Project name> — Conceptual ERD'")
+    if not any(any(mk in name_of[t] for mk in C.TITLE_MARKERS) for t in titles):
+        rep.err(pname, f"page needs a title text containing '<Project name> — <{' | '.join(C.TITLE_MARKERS)}>'")
     if not legends:
         rep.err(pname, "page needs a notation legend (text box with the legend style)")
 
@@ -506,8 +510,8 @@ def validate(path, allow_isolated=()):
             rep.warn(infos[0]["name"], "10+ entities on one page: consider an Overview plus subject-area pages")
     else:
         ov, details = infos[0], infos[1:]
-        if ov["name"] != "1 - Overview":
-            rep.err(ov["name"], "first page of a multi-page model must be named '1 - Overview'")
+        if ov["name"] not in C.OVERVIEW_NAMES:
+            rep.err(ov["name"], f"first page of a multi-page model must be named one of {C.OVERVIEW_NAMES}")
         if ov["has_attrs"]:
             rep.err(ov["name"], "the Overview must not show attributes")
         check_connectivity(rep, ov["name"], ov, allow_isolated)

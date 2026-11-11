@@ -12,7 +12,7 @@ license: Apache-2.0
 compatibility: Any coding agent that can read/write files and run python3 (3.9+, standard library only). Without python3 a manual fallback is defined (§6, Step 7b).
 metadata:
   author: XemiQ
-  version: "0.1.1"
+  version: "0.2.0"
   repository: https://github.com/xemiq/agent-skills
   homepage: https://xemiqlab.com/en
 ---
@@ -30,12 +30,15 @@ command. `<skill>` means the directory containing this `SKILL.md`. Run every com
 1. **Ask first.** Never write the diagram before the clarification gate (§5) is passed.
 2. **Never assume business rules.** Every cardinality, participation, key and rule comes from the
    user's words, the user's answers, the existing schema, or the team convention. Anything else is
-   an *open question*, drawn in its least restrictive form.
+   an *open question*, drawn in its least restrictive form. **Unstated participation is always
+   `partial (default)`, never `total (default)`**, however obvious the rule seems.
 3. **Conceptual only.** No data types, FK columns, junction tables, indexes, SQL or storage details.
 4. **diagrams.net XML only**, uncompressed, saved as `db-design/<name>.drawio`. Never write Mermaid,
    PlantUML, DBML or images as the deliverable.
 5. **Always finish with the summary** (entities, relationships, confirmed assumptions, open questions,
    validation result).
+6. **Names in English by default.** If the user writes in another language, ask which language the
+   diagram's names should use (§5.1 N6). Always talk to the user in their own language.
 
 Files in this skill (paths are relative to this file):
 
@@ -56,7 +59,7 @@ Files in this skill (paths are relative to this file):
 | Field | Value |
 |---|---|
 | Name | `db-erd-chen` |
-| Version | 0.1.1, pre-release (semantic versioning, see §12) |
+| Version | 0.2.0, pre-release (semantic versioning, see §12) |
 | Description | Generates conceptual/logical ERDs in Chen notation as diagrams.net XML in `db-design/`, after clarifying ambiguities, and gives a summary of the model and its assumptions |
 | Author / owner | XemiQ (https://xemiqlab.com/en, https://github.com/xemiq). Questions and bugs: https://github.com/xemiq/agent-skills/issues |
 | License | Apache-2.0 (see `LICENSE` at the repository root) |
@@ -104,6 +107,7 @@ Files in this skill (paths are relative to this file):
 | Scope boundary (which bounded context / service / tables) | When the repository has several databases or more than ~30 tables | Ask |
 | Subject areas (page split) | Only for 10+ entities | Propose a split from the folder or module structure, and confirm it in §5 |
 | Target folder | Default `db-design/` at the repository root | Use another folder only if the user explicitly asks |
+| Diagram language | English, unless the user picks another language (§5.1 N6) | Ask when the request or source is not in English |
 
 **Discovery.** If the user gives no source, look in the repository first (read-only), then
 report what you found: "I found 14 migrations in `db/migrations/` and Prisma models in
@@ -152,6 +156,9 @@ what is *derived* and what needs a *question*.
 - N4. Technical columns (`created_at`, `version` …) → omitted, and listed in the model's `omitted`
   field, which the summary prints.
 - N5. Page split, naming and verb wording → your proposal.
+- N6. Diagram language: the request or source is not in English → ask which language to use for
+  names and notes (*default: English*). Draft the names in the language you propose. The model's
+  `language` field records the answer.
 
 ### 5.2 Ask: one batched round, then wait
 
@@ -169,10 +176,14 @@ what is *derived* and what needs a *question*.
    in one question. Ask at most **10 questions per round**. Non-blocking questions state their
    default: *"(default: partial, single line)"*. Blocking questions may state your *recommended*
    answer, but it is never applied without an answer.
-3. End with: "Please answer, or confirm the draft as is." Then **stop and wait. Write no files.**
-4. When the answers arrive, update the model. If they raise *new* blocking points, run another round.
+3. **Self-check the draft before sending it.** Any `total (default)` must become `partial (default)`.
+   Every unstated maximum must be `?` with a blocking question. Every *species/type/category/status*-like
+   value needs a B3 question. If the request is not in English, the N6 language question must be there.
+4. End with "Please answer, or confirm the draft as is." (in the user's language). Then **stop and
+   wait. Write no files.**
+5. When the answers arrive, update the model. If they raise *new* blocking points, run another round.
    After 3 rounds, stop asking about non-blocking points. Blocking points always need an answer.
-5. When there are no questions at all (for example a fully constrained schema), still show the draft
+6. When there are no questions at all (for example a fully constrained schema), still show the draft
    and ask for confirmation once. The user must see what will be drawn before it is written.
 
 ### 5.3 What counts as confirmed
@@ -234,6 +245,7 @@ is a question (B5), not a silent outcome.
 fill `assumptions` (each with `confirmed_by`) and `open_questions`.
 
 **Step 6. Write the model JSON.** Follow `references/model-schema.md`:
+- Set `language` to the N6 answer (omit it for English).
 - With 10 or more entities, define 2+ `areas`. This produces Overview + detail pages.
 - Give every entity a `layout` position, following the layout heuristics in the schema reference.
 - Save the model in a temporary location outside the repository if possible. Otherwise save it as
@@ -291,6 +303,7 @@ the user asks to.
   previous versions stay for comparison.
 - Page names: single page `1 - Conceptual ERD`. Multi-page `1 - Overview`, `2 - <Area>`, ….
 - Each page has a title `<Project> — Conceptual ERD` (plus the page name) and a notation legend.
+  With `"language": "es"` the renderer translates these texts (`1 - ERD conceptual`, `1 - Vista general`).
 
 ### 7.3 Chat summary (always; keep it short)
 
@@ -329,9 +342,10 @@ The full rules are in `references/erd-guide.md` (§1–§4). The essentials:
   identifying relationship (double diamond) and total participation (double line).
 - **Never draw:** data types, FK columns as attributes (`Customer ID` inside `Order`), junction
   tables as entities (unless they have their own identity or history), indexes, SQL, arrowheads.
-- **Naming:** entities are singular Title Case English nouns. Attributes are in Sentence case, and
-  booleans start with `Is`/`Has`/`Must`. Relationships are verb phrases. Notes start with
-  `Constraint:` or `Rule:`.
+- **Naming:** names are in English unless the user chose another language (N6). Entities are
+  singular Title Case nouns. Attributes are in Sentence case, and English booleans start with
+  `Is`/`Has`/`Must`. Relationships are verb phrases. Notes start with `Constraint:` or `Rule:`, or the
+  chosen language's prefixes (Spanish `Restricción:` / `Regla:`).
 - **Multi-page:** the Overview shows every entity and relationship, without attributes, and repeats
   every note. Each entity has exactly one home page with all its attributes. Elsewhere it is a
   reference entity without attributes. Every relationship appears on at least one detail page.
@@ -473,27 +487,9 @@ the end of `examples/task-tracker/input.md`.
 
 ## 12. Extensibility & maintenance
 
-- **Single source of truth for styles:** `scripts/erd_catalog.py`. If the team guide (§4.5) changes,
-  update `references/erd-guide.md` and `erd_catalog.py` together, render the example again
-  (`render_erd.py examples/task-tracker/model.json --out examples/task-tracker/db-design/conceptual-erd.drawio --force`),
-  update the §11 snippet, and run `tests/test_skill.py`.
-- **New notations** (Crow's foot, IDEF1X, UML class): add a catalog module per notation (e.g.
-  `erd_catalog_crowsfoot.py`) and a `"notation"` field in the model. Keep the model notation-neutral,
-  which it already is: entities, ends with card/total. Add a matching rule set to the validator. Chen
-  stays the default.
-- **EER features** (specialization/generalization, categories): add `"specializations"` to the model
-  and an `isa` triangle style to the catalog. Until then they are modeled as described in
-  `references/source-mapping.md` (the inheritance row).
-- **Other export formats** (SVG/PNG/PDF): export from the `.drawio` with the diagrams.net desktop CLI
-  (`drawio -x -f png …`) as an *additional* artifact. The `.drawio` file stays the deliverable.
-  Mermaid/PlantUML exporters, if they are ever wanted, belong in a separate skill so this one keeps
-  its single output contract.
-- **New source types:** add a section to `references/source-mapping.md`, with its derived-vs-question
-  classification.
-- **Tests:** every bug fix adds a case to `tests/test_skill.py`. Run the tests before releasing a new version.
-- **Versioning:** semantic versioning in the front matter. MAJOR = output contract changes (file
-  layout, model schema breaking changes); MINOR = new capabilities or checks; PATCH = fixes. Record
-  every change in `CHANGELOG.md`.
-- **Agent-agnostic packaging:** this folder follows the common `SKILL.md` + front matter
-  convention. Agents that use another mechanism (rules files, custom instructions) can reference or
-  inline this file unchanged. Nothing in it depends on a vendor-specific tool name.
+The details are in `references/maintenance.md`. In short:
+- Styles live in `scripts/erd_catalog.py` only. New notations, EER features and diagram languages
+  are added there, with matching validator rules.
+- Other export formats (SVG/PNG) are *additional* artifacts exported from the `.drawio`, which stays
+  the deliverable.
+- Every fix adds a test. Versions follow semantic versioning in the front matter and `CHANGELOG.md`.

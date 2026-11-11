@@ -1,0 +1,29 @@
+{
+  "project": "Clínica Veterinaria",
+  "language": "es",
+  "source": "Test fixture: diagram language Spanish",
+  "entities": [
+    {"id": "dueno", "name": "Dueño", "attributes": [
+      {"name": "Correo electrónico", "kind": "key"}, {"name": "Nombre completo"},
+      {"name": "Teléfonos", "kind": "multivalued"}]},
+    {"id": "mascota", "name": "Mascota", "attributes": [
+      {"name": "ID de mascota", "kind": "key"}, {"name": "Nombre"}, {"name": "Especie"},
+      {"name": "Fecha de nacimiento"}, {"name": "Edad", "kind": "derived"}]},
+    {"id": "veterinario", "name": "Veterinario", "attributes": [
+      {"name": "Número de licencia", "kind": "key"}, {"name": "Nombre"}]},
+    {"id": "consulta", "name": "Consulta", "weak": true, "attributes": [
+      {"name": "Nº de consulta", "kind": "partial_key"}, {"name": "Fecha"}, {"name": "Motivo"},
+      {"name": "Diagnóstico"}]}
+  ],
+  "relationships": [
+    {"id": "tiene", "name": "Tiene", "ends": [
+      {"entity": "dueno", "card": "1"}, {"entity": "mascota", "card": "N", "total": true}]},
+    {"id": "recibe", "name": "Recibe", "identifying": true, "ends": [
+      {"entity": "mascota", "card": "1"}, {"entity": "consulta", "card": "N", "total": true}]},
+    {"id": "atiende", "name": "Atiende", "ends": [
+      {"entity": "veterinario", "card": "1"}, {"entity": "consulta", "card": "N", "total": true}]}
+  ],
+  "notes": [{"text": "Restricción: Un Dueño tiene al menos un teléfono."}],
+  "assumptions": [{"text": "Los nombres del diagrama van en español, a petición del usuario.", "confirmed_by": "user"}],
+  "layout": {"main": {"positions": {"dueno": [0, 0], "mascota": [1.4, 0], "veterinario": [0, 1.2], "consulta": [1.4, 1.2]}}}
+}

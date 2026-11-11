@@ -60,7 +60,7 @@ Our ERDs describe the **conceptual/logical model**: what the business needs to s
   - Example: `Order Line` depends on `Order` and is identified by the order plus `Line #`.
 - A weak entity always connects to its owner through an **identifying relationship** (double diamond), with **total participation** (double line) on the weak side.
 
-**Naming:** a singular noun, in English, in *Title Case* (`Order Line`, not `order_lines` or `OrderLines`).
+**Naming:** a singular noun, in *Title Case* (`Order Line`, not `order_lines` or `OrderLines`), in the diagram language (see §2.9).
 
 ### 2.3 Attributes
 
@@ -76,7 +76,7 @@ Our ERDs describe the **conceptual/logical model**: what the business needs to s
 **Rules:**
 - Every **strong** entity has **exactly one** underlined key attribute. When the natural key is made of several values (e.g. `Flight number` + `Departure date`), draw it as one underlined composite attribute. Other unique attributes are written as `Constraint: … is unique.` notes.
 - Every **weak** entity has **exactly one** partial key (dashed underline) and **no** underlined key: its full identity is the owner's key plus the partial key.
-- Attributes are named in English, in *Sentence case* (`Unit price`, `Is active`). Booleans start with `Is`, `Has` or `Must`.
+- Attributes are named in *Sentence case* (`Unit price`, `Is active`), in the diagram language (§2.9). In English, booleans start with `Is`, `Has` or `Must`.
 - No data types, lengths or precision.
 - A reference to another entity (e.g. `Customer ID` inside `Order`) is **never** drawn as an attribute. It is a **relationship**.
 
@@ -91,7 +91,7 @@ Draw them as ellipses connected to the **diamond**, not to the entities.
 
 ### 2.5 Relationships
 
-- Name a relationship with a **verb or verb phrase** in English that reads from one entity to the other (`Customer` *Places* `Order`, `Warehouse` *Stores* `Product`).
+- Name a relationship with a **verb or verb phrase** in the diagram language (§2.9) that reads from one entity to the other (`Customer` *Places* `Order`, `Warehouse` *Stores* `Product`).
 - **Degree:** relationships are normally binary.
   - A **recursive** relationship (an entity related to itself) is valid. Label the role on each line, e.g. `1 (manager)` / `N (report)` for `Employee` *Manages* `Employee`.
   - Use a ternary relationship only when the association genuinely cannot be split into binary ones.
@@ -131,7 +131,14 @@ Some rules cannot be drawn with the basic symbols. Document them in a **pink not
 - **Composite uniqueness:** "A Serial number is unique within its Manufacturer."
 - **Ranges and limits:** "A Product has between 1 and 5 images."
 
-Wording: start with `Constraint: …` for integrity constraints and `Rule: …` for business rules. Write them in English, like the rest of the diagram.
+Wording: start with `Constraint: …` for integrity constraints and `Rule: …` for business rules. Write them in the diagram language, like the rest of the diagram. For Spanish, use `Restricción: …` and `Regla: …`.
+
+### 2.9 Diagram language
+
+- Diagrams are in **English by default**.
+- When the request or the source material is in another language, ask the user which language the diagram should use for entity, attribute and relationship names and for notes. Record the answer as a confirmed decision.
+- Use one language per diagram. Do not mix languages in names.
+- The notation (symbols, `1`/`N`/`M`, line styles) is the same in every language. Titles, page names and the legend follow the diagram language when a translation exists. Spanish is translated (`ERD conceptual`, `1 - Vista general`, `Leyenda`). Other languages keep these texts in English.
 
 ---
 

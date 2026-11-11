@@ -463,6 +463,83 @@ class ValidatorRegressionTests(ValidatorNegativeTests):
         self.assertIn("non-numeric waypoint", e)
 
 
+SPANISH = os.path.join(HERE, "fixtures", "clinica-veterinaria.model.json")
+
+
+class LanguageTests(unittest.TestCase):
+    """Diagram language (v0.2.0): English by default, Spanish frame texts, fallback for others."""
+
+    def render(self, model):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(__import__("shutil").rmtree, tmp, True)
+        path = os.path.join(tmp, "m.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(model, f, ensure_ascii=False)
+        out = os.path.join(tmp, "db-design")
+        self.assertEqual(render_erd.main([path, "--out-dir", out]), 0)
+        return os.path.join(out, "conceptual-erd.drawio"), os.path.join(out, "conceptual-erd.summary.md")
+
+    def test_spanish_model_renders_and_validates(self):
+        drawio, summary = self.render(load(SPANISH))
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 0, rep.errors)
+        xml = read(drawio)
+        for text in ("ERD conceptual", "Leyenda (notación Chen)", 'name="1 - ERD conceptual"', "Restricción:"):
+            self.assertIn(text, xml)
+        self.assertIn("Resumen del ERD conceptual", read(summary))
+        self.assertIn("| Entidad | Tipo |", read(summary))
+
+    def test_english_is_the_default(self):
+        m = load(EXAMPLE)
+        m.pop("language", None)
+        render_erd.normalize_model(m)
+        self.assertEqual(m["language"], "en")
+        xml = render_erd.build(m)[0]
+        self.assertIn("Conceptual ERD", xml)
+        self.assertIn("Legend (Chen notation)", xml)
+
+    def test_spanish_multi_page_overview_name(self):
+        m = load(MULTI)
+        m["language"] = "es"
+        m["notes"] = [dict(n, text=n["text"].replace("Constraint:", "Restricción:").replace("Rule:", "Regla:"))
+                      for n in m["notes"]]
+        drawio, _ = self.render(m)
+        self.assertIn('name="1 - Vista general"', read(drawio))
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 0, rep.errors)
+
+    def test_note_prefix_must_match_language(self):
+        m = load(SPANISH)
+        m["notes"] = [{"text": "Nota: algo"}]
+        with self.assertRaises(render_erd.ModelError):
+            render_erd.normalize_model(m)
+        m = load(SPANISH)
+        m["notes"] = [{"text": "Constraint: An Owner has at least one phone."}]  # English prefixes always accepted
+        render_erd.normalize_model(m)
+
+    def test_unsupported_language_falls_back_with_warning(self):
+        m = load(EXAMPLE)
+        m["language"] = "fr"
+        render_erd.normalize_model(m)
+        xml, _, warnings = render_erd.build(m)
+        self.assertIn("Conceptual ERD", xml)
+        self.assertTrue(any("'fr'" in w for w in warnings))
+
+    def test_invalid_language_code_rejected(self):
+        m = load(EXAMPLE)
+        m["language"] = "Spanish"
+        with self.assertRaises(render_erd.ModelError):
+            render_erd.normalize_model(m)
+
+    def test_spanish_foreign_key_attribute_is_caught(self):
+        m = load(SPANISH)
+        m["entities"][1]["attributes"].append({"name": "ID de Dueño"})
+        drawio, _ = self.render(m)
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 1)
+        self.assertTrue(any("foreign key" in e for e in rep.errors), rep.errors)
+
+
 if __name__ == "__main__":
     import contextlib
     import io

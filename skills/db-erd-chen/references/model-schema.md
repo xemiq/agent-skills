@@ -9,6 +9,7 @@ The renderer rejects a model that breaks a notation rule, and lists every proble
 | Field | Required | Meaning |
 |---|---|---|
 | `project` | yes | Project name, used in every page title (`<project> — Conceptual ERD`) |
+| `language` | no | Language code of the diagram's names, e.g. `"es"`. Default `"en"`. `en` and `es` have translated titles, page names, legend, summary and note prefixes (`Restricción:` / `Regla:`). Other codes keep those texts in English and print a warning |
 | `source` | no | One line describing the inputs (e.g. `"SQL migrations in db/migrations + answers to 5 questions"`) |
 | `areas` | no | Subject areas. **2 or more areas → multi-page file** (`1 - Overview` + one page per area). 0–1 areas → a single page `1 - Conceptual ERD` |
 | `entities` | yes | List of entities (see below) |
@@ -82,7 +83,8 @@ versions unless the concept itself changed. Stable ids keep git diffs meaningful
 "open_questions": ["Must every customer have at least one order? Drawn as partial participation."]
 ```
 
-- Note text starts with `Constraint:` (integrity constraint) or `Rule:` (business rule). In
+- Note text starts with `Constraint:` (integrity constraint) or `Rule:` (business rule), or with the
+  `language`'s equivalents (Spanish: `Restricción:` / `Regla:`). In
   multi-page models `pages` lists the areas where the rule matters. The Overview repeats every note
   automatically.
 - `confirmed_by` must be one of:

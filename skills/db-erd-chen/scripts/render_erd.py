@@ -88,6 +88,9 @@ def check_types(m):
 
     if not _is_str(m.get("project")):
         p.append("'project' (project name used in page titles) is required and must be a non-empty string")
+    lang = m.get("language")
+    if lang is not None and not (isinstance(lang, str) and re.match(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", lang)):
+        p.append("'language' must be a language code such as 'en', 'es' or 'pt-BR'")
     for key in ("source",):
         if key in m and m[key] is not None and not isinstance(m[key], str):
             p.append(f"'{key}' must be a string")
@@ -178,7 +181,8 @@ def normalize_model(m):
     if p:
         raise ModelError(p)
     for key, default in (("areas", []), ("relationships", []), ("notes", []), ("assumptions", []),
-                         ("open_questions", []), ("omitted", []), ("layout", {}), ("source", "")):
+                         ("open_questions", []), ("omitted", []), ("layout", {}), ("source", ""),
+                         ("language", "en")):
         if m.get(key) is None:
             m[key] = default
     areas, entities, rels, notes = m["areas"], m["entities"], m["relationships"], m["notes"]
@@ -321,10 +325,12 @@ def normalize_model(m):
             p.append(f"weak entity {eid!r} must be the dependent end of exactly one identifying relationship "
                      f"(found {n})")
 
+    L, _ = C.lang_strings(m["language"])
+    prefixes = sorted({"Constraint:", "Rule:", L["constraint"], L["rule"]})
     for n in notes:
         t = n["text"].strip()
-        if not (t.startswith("Constraint:") or t.startswith("Rule:")):
-            p.append(f"note {t[:40]!r}... must start with 'Constraint:' or 'Rule:'")
+        if not any(t.startswith(x) for x in prefixes):
+            p.append(f"note {t[:40]!r}... must start with one of {prefixes}")
         if multi:
             pgs = n.get("pages") or []
             if not pgs or any(pg not in area_ids for pg in pgs):
@@ -411,11 +417,11 @@ def shrink(b, d):
     return (b[0] + d, b[1] + d, b[2] - 2 * d, b[3] - 2 * d)
 
 
-def legend_height(width, line_px=14, char_px=5.6, padding=24):
+def legend_height(width, legend_html=C.LEGEND_HTML, line_px=14, char_px=5.6, padding=24):
     """Height that fits the legend text (fontSize 11, spacing 8), estimating wrapped lines."""
     usable = width - 16
     lines = 0
-    for raw in C.LEGEND_HTML.split("<br>"):
+    for raw in legend_html.split("<br>"):
         text = re.sub(r"<[^>]+>", "", raw)
         lines += max(1, math.ceil(len(text) * char_px / usable))
     return lines * line_px + padding
@@ -715,11 +721,12 @@ def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, sp
     xs = [b[0] for b in page.boxes] + [b[0] + b[2] for b in page.boxes]
     ys = [b[1] for b in page.boxes] + [b[1] + b[3] for b in page.boxes]
     minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
-    title = (f"<b><span style=\"font-size: 16px;\">{esc(m['project'])} — Conceptual ERD</span></b>"
-             f"<br>Page: {esc(page.name)}")
+    L, _ = C.lang_strings(m.get("language"))
+    title = (f"<b><span style=\"font-size: 16px;\">{esc(m['project'])} — {L['title']}</span></b>"
+             f"<br>{L['page_label']}: {esc(page.name)}")
     page.vertex(page.next_id("t"), title, C.TEXT, minx, miny - 110, 520, 50)
     lw = 340
-    page.vertex(page.next_id("l"), C.LEGEND_HTML, C.LEGEND, maxx + 80, miny, lw, legend_height(lw))
+    page.vertex(page.next_id("l"), L["legend"], C.LEGEND, maxx + 80, miny, lw, legend_height(lw, L["legend"]))
     nw, nh = SIZE["note"]
     for i, n in enumerate(notes):
         col, row = i % 3, i // 3
@@ -778,6 +785,10 @@ def page_xml(page, parent):
 
 def build(m):
     warnings = []
+    L, supported = C.lang_strings(m.get("language"))
+    if not supported:
+        warnings.append(f"language {m.get('language')!r} has no translation for titles, legend and summary; "
+                        "they are rendered in English (add it to erd_catalog.LANG)")
     areas = m["areas"]
     multi = len(areas) >= 2
     pages = []
@@ -785,13 +796,13 @@ def build(m):
         warnings.append("model has 10+ entities on a single page; consider defining 2+ 'areas' "
                         "to get an Overview plus one page per subject area")
     if not multi:
-        pg = Page("erd", "1 - Conceptual ERD")
+        pg = Page("erd", L["single_page"])
         ids = [e["id"] for e in m["entities"]]
         render_page(m, pg, ids, [], m["relationships"], m["notes"], True,
                     m["layout"].get("main", {}), DETAIL_SPACING, warnings)
         pages.append(pg)
     else:
-        ov = Page("overview", "1 - Overview")
+        ov = Page("overview", L["overview"])
         render_page(m, ov, [e["id"] for e in m["entities"]], [], m["relationships"], m["notes"],
                     False, m["layout"].get("overview", {}), OVERVIEW_SPACING, warnings)
         pages.append(ov)
@@ -823,19 +834,20 @@ def md(text):
 
 
 def summary_md(m, drawio_name, pages):
+    L, _ = C.lang_strings(m.get("language"))
     ents = {e["id"]: e for e in m["entities"]}
     area_name = {a["id"]: a["name"] for a in m["areas"]}
-    out = [f"# {md(m['project'])} — Conceptual ERD summary", "",
-           f"- Diagram: `{drawio_name}` (diagrams.net XML, uncompressed)",
-           f"- Pages: {', '.join(p.name for p in pages)}"]
+    out = [f"# {md(m['project'])} — {L['summary']}", "",
+           f"- {L['diagram']}: `{drawio_name}` ({L['uncompressed']})",
+           f"- {L['pages']}: {', '.join(p.name for p in pages)}"]
     if m.get("source"):
-        out.append(f"- Source: {md(m['source'])}")
-    out += ["", f"## Entities ({len(m['entities'])})", "",
-            "| Entity | Type | Key | Attributes | Home page |", "|---|---|---|---|---|"]
+        out.append(f"- {L['source']}: {md(m['source'])}")
+    out += ["", f"## {L['entities']} ({len(m['entities'])})", "",
+            L["ent_header"], "|---|---|---|---|---|"]
     for e in m["entities"]:
         key = next((a["name"] + (f" ({', '.join(a['parts'])})" if a.get("parts") else "")
                     for a in e["attributes"] if a["kind"] in ("key", "partial_key")), "")
-        kind = "Weak" if e["weak"] else "Strong"
+        kind = L["weak"] if e["weak"] else L["strong"]
         attrs = []
         for a in e["attributes"]:
             if a["kind"] in ("key", "partial_key"):
@@ -846,33 +858,33 @@ def summary_md(m, drawio_name, pages):
             elif a["kind"] != "simple":
                 label += f" [{a['kind']}]"
             attrs.append(label)
-        key_label = f"{key} (partial key)" if e["weak"] else key
+        key_label = f"{key} ({L['partial_key']})" if e["weak"] else key
         home = area_name.get(e.get("area"), pages[0].name) if len(m["areas"]) >= 2 else pages[0].name
         out.append(f"| {md(e['name'])} | {kind} | {md(key_label)} | {md(', '.join(attrs)) or '—'} | {md(home)} |")
-    out += ["", f"## Relationships ({len(m['relationships'])})", "",
-            "| Relationship | Ends (cardinality, participation) | Ratio | Attributes |", "|---|---|---|---|"]
+    out += ["", f"## {L['relationships']} ({len(m['relationships'])})", "",
+            L["rel_header"], "|---|---|---|---|"]
     for r in m["relationships"]:
         ends = []
         for e_ in r["ends"]:
-            role = f" as {e_['role']}" if e_.get("role") else ""
-            part = "total" if e_["total"] else "partial"
+            role = f" {L['as']} {e_['role']}" if e_.get("role") else ""
+            part = L["total"] if e_["total"] else L["partial"]
             ends.append(f"{ents[e_['entity']]['name']}{role} ({e_['card']}, {part})")
         ratio = ":".join(e_["card"] for e_ in r["ends"])
         if len(r["ends"]) == 3:
-            ratio += " (ternary)"
+            ratio += f" ({L['ternary']})"
         elif len({e_["entity"] for e_ in r["ends"]}) == 1:
-            ratio += " (recursive)"
-        name = r["name"] + (" (identifying)" if r["identifying"] else "")
+            ratio += f" ({L['recursive']})"
+        name = r["name"] + (f" ({L['identifying']})" if r["identifying"] else "")
         attrs = ", ".join(a["name"] for a in r["attributes"]) or "—"
         out.append(f"| {md(name)} | {md(' — '.join(ends))} | {ratio} | {md(attrs)} |")
-    out += ["", "## Constraints and business rules", ""]
-    out += [f"- {md(n['text'])}" for n in m["notes"]] or ["- None recorded."]
-    out += ["", "## Confirmed assumptions and decisions", ""]
-    out += [f"- {md(a['text'])} (confirmed by: {a['confirmed_by']})" for a in m["assumptions"]] or ["- None."]
-    out += ["", "## Open questions (not modeled as rules; drawn in the least restrictive form)", ""]
-    out += [f"- {md(q)}" for q in m["open_questions"]] or ["- None."]
-    out += ["", "## Omitted from the conceptual model", ""]
-    out += [f"- {md(o['item'])}: {md(o.get('reason', ''))}" for o in m["omitted"]] or ["- Nothing."]
+    out += ["", f"## {L['rules']}", ""]
+    out += [f"- {md(n['text'])}" for n in m["notes"]] or [f"- {L['none_rules']}"]
+    out += ["", f"## {L['assumptions']}", ""]
+    out += [f"- {md(a['text'])} ({L['confirmed_by']}: {a['confirmed_by']})" for a in m["assumptions"]] or [f"- {L['none']}"]
+    out += ["", f"## {L['open']}", ""]
+    out += [f"- {md(q)}" for q in m["open_questions"]] or [f"- {L['none']}"]
+    out += ["", f"## {L['omitted']}", ""]
+    out += [f"- {md(o['item'])}: {md(o.get('reason', ''))}" for o in m["omitted"]] or [f"- {L['nothing']}"]
     return "\n".join(out) + "\n"
 
 
