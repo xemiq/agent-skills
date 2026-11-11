@@ -130,6 +130,8 @@ LANG = {
         "assumptions": "Confirmed assumptions and decisions", "confirmed_by": "confirmed by",
         "open": "Open questions (not modeled as rules; drawn in the least restrictive form)",
         "omitted": "Omitted from the conceptual model", "none": "None.", "nothing": "Nothing.",
+        "kinds": {"multivalued": "multivalued", "derived": "derived"},
+        "sources": {"user": "user", "stated": "stated", "schema": "schema", "convention": "convention"},
     },
     "es": {
         "title": "ERD conceptual", "page_label": "Página", "single_page": "1 - ERD conceptual",
@@ -146,6 +148,8 @@ LANG = {
         "assumptions": "Supuestos y decisiones confirmados", "confirmed_by": "confirmado por",
         "open": "Preguntas abiertas (no modeladas como reglas; dibujadas en la forma menos restrictiva)",
         "omitted": "Omitido del modelo conceptual", "none": "Ninguno.", "nothing": "Nada.",
+        "kinds": {"multivalued": "multivaluado", "derived": "derivado"},
+        "sources": {"user": "usuario", "stated": "declarado", "schema": "esquema", "convention": "convención"},
     },
 }
 NOTE_PREFIXES = sorted({v for L in LANG.values() for v in (L["constraint"], L["rule"])})

@@ -488,6 +488,10 @@ class LanguageTests(unittest.TestCase):
             self.assertIn(text, xml)
         self.assertIn("Resumen del ERD conceptual", read(summary))
         self.assertIn("| Entidad | Tipo |", read(summary))
+        self.assertIn("Teléfonos [multivaluado]", read(summary))
+        self.assertIn("Edad [derivado]", read(summary))
+        self.assertIn("(confirmado por: usuario)", read(summary))
+        self.assertNotIn("[multivalued]", read(summary))
 
     def test_english_is_the_default(self):
         m = load(EXAMPLE)

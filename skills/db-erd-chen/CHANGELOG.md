@@ -3,6 +3,11 @@
 Semantic versioning: MAJOR = output contract or breaking model-schema change; MINOR = new
 capabilities or checks; PATCH = fixes.
 
+## 0.2.1 — 2026-11-11
+- Summary file: attribute kinds (`[multivaluado]`, `[derivado]`) and confirmation sources
+  (`usuario`, `declarado`, `esquema`, `convención`) are now translated for Spanish diagrams. A test
+  run showed them still in English.
+
 ## 0.2.0 — 2026-11-11
 - New: diagram language. English stays the default. When the user writes in another language, the
   agent asks which language to use for names and notes (clarification N6). The model's `language`

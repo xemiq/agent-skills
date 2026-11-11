@@ -856,7 +856,7 @@ def summary_md(m, drawio_name, pages):
             if a["kind"] == "composite":
                 label += f" ({', '.join(a['parts'])})"
             elif a["kind"] != "simple":
-                label += f" [{a['kind']}]"
+                label += f" [{L['kinds'].get(a['kind'], a['kind'])}]"
             attrs.append(label)
         key_label = f"{key} ({L['partial_key']})" if e["weak"] else key
         home = area_name.get(e.get("area"), pages[0].name) if len(m["areas"]) >= 2 else pages[0].name
@@ -880,7 +880,8 @@ def summary_md(m, drawio_name, pages):
     out += ["", f"## {L['rules']}", ""]
     out += [f"- {md(n['text'])}" for n in m["notes"]] or [f"- {L['none_rules']}"]
     out += ["", f"## {L['assumptions']}", ""]
-    out += [f"- {md(a['text'])} ({L['confirmed_by']}: {a['confirmed_by']})" for a in m["assumptions"]] or [f"- {L['none']}"]
+    out += [f"- {md(a['text'])} ({L['confirmed_by']}: {L['sources'].get(a['confirmed_by'], a['confirmed_by'])})"
+            for a in m["assumptions"]] or [f"- {L['none']}"]
     out += ["", f"## {L['open']}", ""]
     out += [f"- {md(q)}" for q in m["open_questions"]] or [f"- {L['none']}"]
     out += ["", f"## {L['omitted']}", ""]

@@ -12,7 +12,7 @@ license: Apache-2.0
 compatibility: Any coding agent that can read/write files and run python3 (3.9+, standard library only). Without python3 a manual fallback is defined (§6, Step 7b).
 metadata:
   author: XemiQ
-  version: "0.2.0"
+  version: "0.2.1"
   repository: https://github.com/xemiq/agent-skills
   homepage: https://xemiqlab.com/en
 ---
@@ -59,7 +59,7 @@ Files in this skill (paths are relative to this file):
 | Field | Value |
 |---|---|
 | Name | `db-erd-chen` |
-| Version | 0.2.0, pre-release (semantic versioning, see §12) |
+| Version | 0.2.1, pre-release (semantic versioning, see §12) |
 | Description | Generates conceptual/logical ERDs in Chen notation as diagrams.net XML in `db-design/`, after clarifying ambiguities, and gives a summary of the model and its assumptions |
 | Author / owner | XemiQ (https://xemiqlab.com/en, https://github.com/xemiq). Questions and bugs: https://github.com/xemiq/agent-skills/issues |
 | License | Apache-2.0 (see `LICENSE` at the repository root) |
