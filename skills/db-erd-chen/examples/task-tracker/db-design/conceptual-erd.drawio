@@ -87,7 +87,7 @@
           <mxGeometry x="40" y="40" width="520" height="50" as="geometry" />
         </mxCell>
         <mxCell id="l1" value="&lt;b&gt;Legend (Chen notation)&lt;/b&gt;&lt;br&gt;Rectangle: entity&lt;br&gt;Double rectangle: weak entity&lt;br&gt;Diamond: relationship&lt;br&gt;Double diamond: identifying relationship&lt;br&gt;Ellipse: attribute&lt;br&gt;&lt;u&gt;Underlined&lt;/u&gt;: key attribute&lt;br&gt;&lt;span style=&quot;border-bottom: 1px dashed;&quot;&gt;Dashed underline&lt;/span&gt;: partial key&lt;br&gt;Double ellipse: multivalued attribute&lt;br&gt;Dashed ellipse: derived attribute&lt;br&gt;Ellipse with child ellipses: composite attribute&lt;br&gt;Single line: partial (optional) participation&lt;br&gt;Double line: total (mandatory) participation&lt;br&gt;1 / N / M next to an entity: cardinality of that entity&lt;br&gt;Pink note: constraint or business rule&lt;br&gt;Grey dashed rectangle: reference entity (attributes on its home page)" style="text;html=1;align=left;verticalAlign=top;fontSize=11;whiteSpace=wrap;strokeColor=#999999;fillColor=#fafafa;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="1601" y="150" width="340" height="320" as="geometry" />
+          <mxGeometry x="1601" y="150" width="340" height="262" as="geometry" />
         </mxCell>
         <mxCell id="n1" value="Constraint: A User has at least one phone number." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;spacingLeft=6;spacingRight=6;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="40" y="1012" width="300" height="90" as="geometry" />

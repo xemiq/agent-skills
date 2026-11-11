@@ -411,6 +411,16 @@ def shrink(b, d):
     return (b[0] + d, b[1] + d, b[2] - 2 * d, b[3] - 2 * d)
 
 
+def legend_height(width, line_px=14, char_px=5.6, padding=24):
+    """Height that fits the legend text (fontSize 11, spacing 8), estimating wrapped lines."""
+    usable = width - 16
+    lines = 0
+    for raw in C.LEGEND_HTML.split("<br>"):
+        text = re.sub(r"<[^>]+>", "", raw)
+        lines += max(1, math.ceil(len(text) * char_px / usable))
+    return lines * line_px + padding
+
+
 def esc(text):
     return html.escape(str(text), quote=False)
 
@@ -708,7 +718,8 @@ def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, sp
     title = (f"<b><span style=\"font-size: 16px;\">{esc(m['project'])} — Conceptual ERD</span></b>"
              f"<br>Page: {esc(page.name)}")
     page.vertex(page.next_id("t"), title, C.TEXT, minx, miny - 110, 520, 50)
-    page.vertex(page.next_id("l"), C.LEGEND_HTML, C.LEGEND, maxx + 80, miny, 340, 320)
+    lw = 340
+    page.vertex(page.next_id("l"), C.LEGEND_HTML, C.LEGEND, maxx + 80, miny, lw, legend_height(lw))
     nw, nh = SIZE["note"]
     for i, n in enumerate(notes):
         col, row = i % 3, i // 3

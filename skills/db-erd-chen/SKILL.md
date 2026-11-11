@@ -12,7 +12,7 @@ license: Apache-2.0
 compatibility: Any coding agent that can read/write files and run python3 (3.9+, standard library only). Without python3 a manual fallback is defined (§6, Step 7b).
 metadata:
   author: XemiQ
-  version: "0.1.0"
+  version: "0.1.1"
   repository: https://github.com/xemiq/agent-skills
   homepage: https://xemiqlab.com/en
 ---
@@ -56,7 +56,7 @@ Files in this skill (paths are relative to this file):
 | Field | Value |
 |---|---|
 | Name | `db-erd-chen` |
-| Version | 0.1.0, pre-release (semantic versioning, see §12) |
+| Version | 0.1.1, pre-release (semantic versioning, see §12) |
 | Description | Generates conceptual/logical ERDs in Chen notation as diagrams.net XML in `db-design/`, after clarifying ambiguities, and gives a summary of the model and its assumptions |
 | Author / owner | XemiQ (https://xemiqlab.com/en, https://github.com/xemiq). Questions and bugs: https://github.com/xemiq/agent-skills/issues |
 | License | Apache-2.0 (see `LICENSE` at the repository root) |
@@ -131,7 +131,7 @@ what is *derived* and what needs a *question*.
 **Blocking**: you cannot draw a correct diagram without the answer:
 - B1. No usable source, or the scope is unclear (which service, which tables).
 - B2. The **maximum** cardinality of a relationship is unknown in either direction (1 vs many).
-- B3. Entity or attribute? (e.g. *Address*, *Category*, *Tag*: do they have their own identity or properties?)
+- B3. Entity or attribute? (e.g. *Address*, *Category*, *Tag*, *Species*, *Type*, *Status*: do they have their own identity, properties or managed list of values?)
 - B4. Strong or weak? (Can X exist or be identified without its owner?)
 - B5. A relationship is implied but not stated, or its meaning or verb is unclear.
 - B6. A relationship or an entity? (Can the same pair be associated several times, with history? Is the link referenced by other things?)
@@ -145,7 +145,7 @@ what is *derived* and what needs a *question*.
   maximum, i.e. a business rule).
 
 **Non-blocking**: there is a safe, least-restrictive default:
-- N1. Minimum participation not stated → **partial** (single line).
+- N1. Minimum participation not stated → **partial** (single line). A `(default)` is **never** `total`, however obvious.
 - N2. Unsure whether an attribute is derived (stored vs calculated) or composite (split into parts) →
   **simple**. These choices change the representation only, not a rule. Single vs multi-valued is B10.
 - N3. Entity has no natural key → conceptual identifier `<Entity> ID` (team convention).

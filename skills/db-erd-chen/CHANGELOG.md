@@ -3,6 +3,12 @@
 Semantic versioning: MAJOR = output contract or breaking model-schema change; MINOR = new
 capabilities or checks; PATCH = fixes.
 
+## 0.1.1 — 2026-11-11
+- Clarification: a `(default)` participation is always partial, never total (found in a test run where
+  the draft proposed "total (default)" for unstated minimums).
+- Clarification: *Species*, *Type*, *Status* added to the entity-or-attribute (B3) examples.
+- Renderer: the legend box height now fits its text instead of a fixed 320 px.
+
 ## 0.1.0 — 2026-11-10 (initial public pre-release)
 - Published as `db-erd-chen` in https://github.com/xemiq/agent-skills under Apache-2.0.
 - First release: SKILL.md (12 components), team guide copy (`references/erd-guide.md`), source

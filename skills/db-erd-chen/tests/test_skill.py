@@ -411,6 +411,12 @@ class AdversarialRegressionTests(unittest.TestCase):
         render_erd.main([EXAMPLE, "--out-dir", out])
         self.assertTrue(os.path.exists(os.path.join(out, "conceptual-erd-v4.drawio")))
 
+    def test_legend_fits_its_text(self):
+        xml = render_erd.build(render_erd.normalize_model(load(EXAMPLE)))[0]
+        m = re.search(r'id="l1"[^>]*>\s*<mxGeometry [^>]*height="(\d+)"', xml)
+        self.assertIsNotNone(m)
+        self.assertTrue(220 <= int(m.group(1)) <= 280, m.group(1))
+
     def test_summary_escapes_pipes(self):
         m = load(EXAMPLE)
         m["entities"][0]["attributes"][1]["name"] = "Budget | limit"
