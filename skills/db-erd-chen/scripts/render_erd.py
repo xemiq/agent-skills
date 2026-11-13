@@ -6,15 +6,18 @@ Usage:
   python3 render_erd.py MODEL.json --out-dir db-design [--name conceptual-erd]
   python3 render_erd.py MODEL.json --out db-design/conceptual-erd-v2.drawio [--force]
   python3 render_erd.py MODEL.json --check          # validate the model only, write nothing
+  add --drawio-svg to also write an editable <base>.drawio.svg, or --no-svg to skip the previews
 
 With --out-dir the next free version name is chosen automatically
 (conceptual-erd.drawio, then conceptual-erd-v2.drawio, -v3 ...). Existing files are never
 overwritten unless --out and --force are both given.
 
-Writes three files with the same base name:
+Writes these files with the same base name:
   <base>.drawio        the diagram (the deliverable)
   <base>.summary.md    human-readable summary (entities, relationships, rules, assumptions)
   <base>.model.json    normalized copy of the input model (lets the diagram be regenerated)
+  <base>.svg           preview image (multi-page files: <base>.p1.svg, <base>.p2.svg ...),
+                       written by export_svg.py; never edit it
 
 The model format is documented in references/model-schema.md. Standard library only.
 Exit codes: 0 ok (warnings may be printed), 1 invalid model, 2 file-system error.
@@ -30,6 +33,7 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import erd_catalog as C  # noqa: E402
+import export_svg  # noqa: E402
 
 ATTR_KINDS = {"simple", "key", "partial_key", "multivalued", "derived", "composite"}
 CARDS = {"1", "N", "M"}
@@ -1048,7 +1052,8 @@ def summary_md(m, drawio_name, pages):
 # --------------------------------------------------------------------------- CLI
 def next_version_path(out_dir, name):
     """Highest existing version + 1 (gaps are never reused), so -vN order = creation order."""
-    rx = re.compile(r"^" + re.escape(name) + r"(?:-v(\d+))?\.(?:drawio|summary\.md|model\.json)$")
+    rx = re.compile(r"^" + re.escape(name) + r"(?:-v(\d+))?\.(?:drawio|summary\.md|model\.json|svg|p\d+\.svg|"
+                    r"drawio\.svg)$")
     highest = 0
     for f in os.listdir(out_dir):
         mm = rx.match(f)
@@ -1068,6 +1073,9 @@ def main(argv=None):
     g.add_argument("--check", action="store_true", help="validate the model only")
     ap.add_argument("--name", default="conceptual-erd", help="base name used with --out-dir")
     ap.add_argument("--force", action="store_true", help="allow overwriting with --out")
+    ap.add_argument("--no-svg", action="store_true", help="do not write the .svg preview(s)")
+    ap.add_argument("--drawio-svg", action="store_true",
+                    help="also write <base>.drawio.svg (first page, editable in diagrams.net)")
     args = ap.parse_args(argv)
 
     try:
@@ -1114,6 +1122,10 @@ def main(argv=None):
                 return 1
             base = out[:-len(".drawio")]
             targets = [out, base + ".summary.md", base + ".model.json"]
+            if not args.no_svg:
+                targets += export_svg.preview_paths(out, len(pages))
+            if args.drawio_svg:
+                targets.append(base + ".drawio.svg")
             if not args.force and any(os.path.exists(t) for t in targets):
                 print(f"ERROR: {', '.join(t for t in targets if os.path.exists(t))} already exists; "
                       "use --out-dir to create a new version, or --force to overwrite", file=sys.stderr)
@@ -1134,11 +1146,20 @@ def main(argv=None):
     except OSError as ex:
         print(f"ERROR: cannot write output: {ex}", file=sys.stderr)
         return 2
+    previews = []
+    if not args.no_svg or args.drawio_svg:
+        try:  # previews are extras: a failure never loses the .drawio
+            previews = export_svg.export(xml, out, svg=not args.no_svg, drawio_svg=args.drawio_svg)
+        except Exception as ex:
+            warnings.append(f"could not write the SVG preview ({type(ex).__name__}: {ex}); the .drawio is fine. "
+                            "Retry with export_svg.py, and please report it")
     for w in warnings:
         print(f"WARNING: {w}")
     print(f"Wrote {out}")
     print(f"Wrote {base}.summary.md")
     print(f"Wrote {base}.model.json")
+    for p_ in previews:
+        print(f"Wrote {p_}")
     return 0
 
 

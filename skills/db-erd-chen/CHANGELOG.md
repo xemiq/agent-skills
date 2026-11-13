@@ -3,6 +3,26 @@
 Semantic versioning: MAJOR = output contract or breaking model-schema change; MINOR = new
 capabilities or checks; PATCH = fixes.
 
+## 0.4.0 — 2026-11-12
+- New: SVG previews. Next to every `.drawio`, the renderer writes `<base>.svg`, or one `<base>.p<N>.svg`
+  per page for multi-page files (p1 = Overview). GitHub, GitLab and Markdown show these inline, so a
+  diagram can be reviewed in a pull request without opening diagrams.net. `--no-svg` skips them.
+- New: `--drawio-svg` also writes `<base>.drawio.svg`, the first page as an image with the whole
+  diagram embedded, so diagrams.net can open and edit it. It is opt-in because it is not diffable and
+  duplicates the `.drawio`.
+- New script `scripts/export_svg.py`: draws the previews from the `.drawio` file itself (shapes,
+  double lines, labels, waypoints, notes, legend, specializations), so it also refreshes them after a
+  manual edit in diagrams.net. Standard library only. A failed preview is a warning: the `.drawio` is
+  always kept.
+- Versioning and `--out --force` now include the preview files, so a leftover preview never gets
+  overwritten or reused.
+- Worked example: committed `conceptual-erd.svg` preview, plus a test that keeps it current. Its
+  `conceptual-erd.model.json` was regenerated: it lacked the `"language": "en"` field that the renderer
+  has written since 0.2.0.
+- SKILL.md rule 4: the deliverable is still the `.drawio`, and the previews are generated extras.
+  Guide §3.3: commit the previews and never edit them by hand.
+- README: shows the example's preview, with the version and pin example updated.
+
 ## 0.3.0 — 2026-11-12
 - New: EER specialization / generalization, in the Elmasri–Navathe style. A purple circle labelled `d`
   (disjoint) or `o` (overlapping) sits between the superclass and its subclasses. A double superclass

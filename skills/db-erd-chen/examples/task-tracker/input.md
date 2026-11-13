@@ -85,6 +85,7 @@ entities, keys, relationships, cardinalities and participation).
   - [conceptual-erd.drawio](db-design/conceptual-erd.drawio): 1 page, 4 entities, 5 relationships, 15 attributes (+2 sub-attributes), 3 notes
   - [conceptual-erd.summary.md](db-design/conceptual-erd.summary.md)
   - [conceptual-erd.model.json](db-design/conceptual-erd.model.json)
+  - [conceptual-erd.svg](db-design/conceptual-erd.svg) (generated preview)
 - Validation: `python3 <skill>/scripts/validate_erd.py db-design/conceptual-erd.drawio` reports `PASS: 0 error(s), 0 warning(s)`.
 
 ### Acceptance criteria (for testing the skill)
