@@ -15,7 +15,7 @@ they don't depend on any vendor-specific tool.
 
 | Skill | Area | What it does | Version |
 |---|---|---|---|
-| [`db-erd-chen`](skills/db-erd-chen/) | Database design | Generates conceptual Entity-Relationship Diagrams in Chen notation as diagrams.net (draw.io) files, from a domain description, SQL DDL or ORM models. It asks clarifying questions first, never assumes business rules, validates its output, and writes a summary of the model and its assumptions | 0.2.1 (pre-release) |
+| [`db-erd-chen`](skills/db-erd-chen/) | Database design | Generates conceptual Entity-Relationship Diagrams in Chen notation, including EER specialization, as diagrams.net (draw.io) files, from a domain description, SQL DDL or ORM models. It asks clarifying questions first, never assumes business rules, validates its output, and writes a summary of the model and its assumptions | 0.3.0 (pre-release) |
 
 ## Install
 
@@ -29,7 +29,7 @@ npx skills add xemiq/agent-skills --list
 npx skills add xemiq/agent-skills --skill db-erd-chen
 
 # pin a release
-npx skills add xemiq/agent-skills@v0.2.1 --skill db-erd-chen
+npx skills add xemiq/agent-skills@v0.3.0 --skill db-erd-chen
 ```
 
 As a Claude Code plugin marketplace:
