@@ -3,6 +3,22 @@
 Semantic versioning: MAJOR = output contract or breaking model-schema change; MINOR = new
 capabilities or checks; PATCH = fixes.
 
+## 0.2.2 — 2026-11-12
+- SKILL.md restructured for progressive disclosure (495 → 353 lines), with no change in
+  behaviour or in the model and output contract. The metadata section (it repeated the front
+  matter) and the automatic checklist (the validator enforces it) were removed. The trigger and
+  scope sections were merged and shortened, and the notation section now holds only the points that
+  need judgement.
+- New `references/edge-cases.md`: the full edge-case table and the procedure for runs where the
+  user cannot or will not answer (non-interactive, "don't ask", delegated decisions). SKILL.md keeps
+  the hard limits inline.
+- New `references/manual-fallback.md`: the hand-written XML procedure (no python3) and the XML
+  template, which moved out of the worked-example section. The documentation-sync test now reads it.
+- New rule 7 in the non-negotiable rules: never overwrite or delete previous versions (it was
+  already in the checklist and the workflow).
+- SKILL.md sections renumbered (§1 When to use … §9 Worked example and maintenance). The clarification
+  codes B1–B10 and N1–N6 are unchanged.
+
 ## 0.2.1 — 2026-11-11
 - Summary file: attribute kinds (`[multivaluado]`, `[derivado]`) and confirmation sources
   (`usuario`, `declarado`, `esquema`, `convención`) are now translated for Spanish diagrams. A test

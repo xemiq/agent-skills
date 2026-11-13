@@ -1,11 +1,11 @@
 # Extensibility & maintenance
 
-How to extend and maintain the `db-erd-chen` skill. SKILL.md §12 summarizes this file.
+How to extend and maintain the `db-erd-chen` skill. SKILL.md §9 points to this file.
 
 - **Single source of truth for styles:** `scripts/erd_catalog.py`. If the team guide (§4.5) changes,
   update `references/erd-guide.md` and `erd_catalog.py` together, render the example again
   (`render_erd.py examples/task-tracker/model.json --out examples/task-tracker/db-design/conceptual-erd.drawio --force`),
-  update the §11 snippet, and run `tests/test_skill.py`.
+  update the template in `references/manual-fallback.md` §2, and run `tests/test_skill.py`.
 - **New notations** (Crow's foot, IDEF1X, UML class): add a catalog module per notation (e.g.
   `erd_catalog_crowsfoot.py`) and a `"notation"` field in the model. Keep the model notation-neutral,
   which it already is: entities, ends with card/total. Add a matching rule set to the validator. Chen

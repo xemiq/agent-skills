@@ -2,7 +2,7 @@
 
 How to turn each kind of input into entities, attributes and relationships. Each row says whether
 the result is **derived** (it may be recorded with `confirmed_by: "schema"` or `"stated"`) or needs a
-**question** (it must be asked, see SKILL.md §5).
+**question** (it must be asked, see SKILL.md §3).
 
 ## 1. Natural-language domain description
 
