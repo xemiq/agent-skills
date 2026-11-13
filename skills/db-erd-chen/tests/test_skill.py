@@ -723,6 +723,127 @@ class SpecializationTests(unittest.TestCase):
         self.assertIn("missing from the Overview", e)
 
 
+class SvgPreviewTests(unittest.TestCase):
+    """SVG previews (v0.4.0): one .svg per page by default, optional editable .drawio.svg."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.out = os.path.join(self.tmp.name, "db-design")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def render(self, model, *flags):
+        path = os.path.join(self.tmp.name, "m.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(model, f, ensure_ascii=False)
+        self.assertEqual(render_erd.main([path, "--out-dir", self.out, *flags]), 0)
+
+    def files(self):
+        return sorted(os.listdir(self.out))
+
+    def svg(self, name):
+        import xml.etree.ElementTree as ET
+        root = ET.parse(os.path.join(self.out, name)).getroot()  # must be well-formed XML
+        self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+        return root, read(os.path.join(self.out, name))
+
+    def test_single_page_writes_one_svg(self):
+        self.render(load(EXAMPLE))
+        self.assertIn("conceptual-erd.svg", self.files())
+        self.assertNotIn("conceptual-erd.drawio.svg", self.files())
+        root, text = self.svg("conceptual-erd.svg")
+        for label in ("Task Tracker — Conceptual ERD", ">User<", ">Contains<", ">1 (mentor)<", "Legend (Chen notation)",
+                      "Constraint: A User has at least one phone"):
+            self.assertIn(label, text)
+        self.assertIn('fill="#ffffff"/>', text.split("\n")[2])  # opaque background for dark viewers
+        self.assertIn("stroke-dasharray", text)  # derived attribute and partial key
+
+    def test_multi_page_writes_one_svg_per_page(self):
+        self.render(load(MULTI))
+        n = read(os.path.join(self.out, "conceptual-erd.drawio")).count("<diagram ")
+        svgs = [f for f in self.files() if f.endswith(".svg")]
+        self.assertEqual(svgs, [f"conceptual-erd.p{i}.svg" for i in range(1, n + 1)])
+        self.assertIn("<title>1 - Overview</title>", self.svg("conceptual-erd.p1.svg")[1])
+
+    def test_no_svg_and_drawio_svg_flags(self):
+        self.render(load(EXAMPLE), "--no-svg")
+        self.assertFalse(any(f.endswith(".svg") for f in self.files()))
+        self.render(load(EXAMPLE), "--drawio-svg")
+        self.assertIn("conceptual-erd-v2.svg", self.files())
+        root, _ = self.svg("conceptual-erd-v2.drawio.svg")
+        import xml.etree.ElementTree as ET
+        embedded = ET.fromstring(root.get("content"))  # diagrams.net reads the diagram from 'content'
+        original = ET.parse(os.path.join(self.out, "conceptual-erd-v2.drawio")).getroot()
+        self.assertEqual(ET.tostring(embedded), ET.tostring(original))
+
+    def test_previews_count_for_versioning(self):
+        os.makedirs(self.out)
+        open(os.path.join(self.out, "conceptual-erd-v3.p2.svg"), "w").close()  # a leftover preview only
+        self.render(load(EXAMPLE))
+        self.assertIn("conceptual-erd-v4.drawio", self.files())
+
+    def test_out_force_protects_previews(self):
+        os.makedirs(self.out)
+        target = os.path.join(self.out, "x.drawio")
+        open(os.path.join(self.out, "x.svg"), "w").close()
+        path = os.path.join(self.tmp.name, "m.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(load(EXAMPLE), f)
+        self.assertEqual(render_erd.main([path, "--out", target]), 2)
+        self.assertEqual(render_erd.main([path, "--out", target, "--force"]), 0)
+
+    def test_deterministic_and_escaped(self):
+        m = load(EXAMPLE)
+        m["project"] = 'R&D <Tools> "X"'
+        self.render(m)
+        self.render(m)
+        root, a = self.svg("conceptual-erd.svg")
+        self.assertEqual(a, self.svg("conceptual-erd-v2.svg")[1])
+        self.assertIn('R&D <Tools> "X" — Conceptual ERD', "".join(root.itertext()))
+
+    def test_specialization_and_spanish(self):
+        m = load(UNIVERSITY)
+        m["language"] = "es"
+        self.render(m)
+        _, text = self.svg("conceptual-erd.svg")
+        self.assertIn('fill="#e1d5e7"', text)
+        self.assertIn('stroke="#9673a6" stroke-width="5"', text)  # total specialization: double purple line
+        self.assertIn("Leyenda (notación Chen)", text)
+
+    def test_export_cli_after_manual_edit(self):
+        self.render(load(EXAMPLE))
+        drawio = os.path.join(self.out, "conceptual-erd.drawio")
+        before = read(os.path.join(self.out, "conceptual-erd.svg"))
+        xml = re.sub(r'(id="E_team"[^>]*>\s*<mxGeometry) x="\d+"', r'\1 x="1500"', read(drawio), count=1)
+        with open(drawio, "w", encoding="utf-8") as f:
+            f.write(xml)
+        import export_svg
+        self.assertEqual(export_svg.main([drawio]), 0)
+        self.assertNotEqual(before, read(os.path.join(self.out, "conceptual-erd.svg")))
+        self.assertEqual(export_svg.main([os.path.join(self.out, "conceptual-erd.summary.md")]), 1)
+
+    def test_compressed_input_is_reported(self):
+        os.makedirs(self.out)
+        path = os.path.join(self.out, "c.drawio")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write('<mxfile><diagram id="a" name="p">7ZRNb4MwDIZ/</diagram></mxfile>')
+        import export_svg
+        self.assertEqual(export_svg.main([path]), 1)
+
+    def test_committed_example_preview_is_current(self):
+        import export_svg
+        drawio = os.path.join(SKILL, "examples", "task-tracker", "db-design", "conceptual-erd.drawio")
+        with tempfile.TemporaryDirectory() as tmp:
+            copy_ = os.path.join(tmp, "conceptual-erd.drawio")
+            with open(copy_, "w", encoding="utf-8") as f:
+                f.write(read(drawio))
+            export_svg.export(read(drawio), copy_)
+            fresh = read(os.path.join(tmp, "conceptual-erd.svg"))
+        self.assertEqual(fresh, read(drawio[:-len(".drawio")] + ".svg"),
+                         "re-render the example (see references/maintenance.md)")
+
+
 if __name__ == "__main__":
     import contextlib
     import io

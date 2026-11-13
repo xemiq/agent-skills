@@ -202,6 +202,9 @@ Small models (fewer than ~10 entities) may use a single page with attributes. Ru
 - File names are lowercase and hyphenated, and state the model level and version: `conceptual-erd.drawio`, `conceptual-erd-v2.drawio`.
 - When a design is reworked, create a **new version file** and keep the previous one, so reviewers can compare.
 - Commit `.drawio` files **uncompressed** (see §4.1) so diffs are readable.
+- Next to each `.drawio`, commit its generated **SVG preview** (`conceptual-erd.svg`, or one
+  `.p<N>.svg` per page), so reviewers can see the diagram in pull requests without opening a tool.
+  Previews are never edited by hand: regenerate them whenever the `.drawio` changes.
 
 ---
 

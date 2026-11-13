@@ -3,8 +3,8 @@ name: db-erd-chen
 description: >-
   Generates conceptual/logical Entity-Relationship Diagrams (ERDs) in Chen notation, including EER
   specialization/generalization, as uncompressed
-  diagrams.net (draw.io) XML files saved in the project's db-design/ folder, together with a short
-  summary of entities, relationships and confirmed assumptions. Use it when the user asks to create,
+  diagrams.net (draw.io) XML files saved in the project's db-design/ folder, together with SVG
+  previews and a short summary of entities, relationships and confirmed assumptions. Use it when the user asks to create,
   draw, update, version or reverse-engineer an ERD, entity-relationship diagram, conceptual or logical
   data model, or database design diagram from a domain description, business rules, SQL DDL,
   migrations or ORM models. Asks clarifying questions before generating. Do not use it for physical
@@ -13,7 +13,7 @@ license: Apache-2.0
 compatibility: Any coding agent that can read/write files and run python3 (3.9+, standard library only). Without python3 a manual fallback is defined (references/manual-fallback.md).
 metadata:
   author: XemiQ
-  version: "0.3.0"
+  version: "0.4.0"
   repository: https://github.com/xemiq/agent-skills
   homepage: https://xemiqlab.com/en
 ---
@@ -34,8 +34,9 @@ command. `<skill>` means the directory containing this `SKILL.md`. Run every com
    an *open question*, drawn in its least restrictive form. **Unstated participation is always
    `partial (default)`, never `total (default)`**, however obvious the rule seems.
 3. **Conceptual only.** No data types, FK columns, junction tables, indexes, SQL or storage details.
-4. **diagrams.net XML only**, uncompressed, saved as `db-design/<name>.drawio`. Never write Mermaid,
-   PlantUML, DBML or images as the deliverable.
+4. **The deliverable is diagrams.net XML**, uncompressed, saved as `db-design/<name>.drawio`. The
+   renderer adds generated SVG previews of it. Never hand-write images, and never deliver Mermaid,
+   PlantUML or DBML.
 5. **Always finish with the summary** (entities, relationships, confirmed assumptions, open questions,
    validation result).
 6. **Names in English by default.** If the user writes in another language, ask which language the
@@ -55,6 +56,7 @@ comes up, not all of them up front:
 | `references/maintenance.md` | You are changing the skill itself (styles, notations, languages, versioning) |
 | `scripts/render_erd.py` | Model JSON → `.drawio` + `.summary.md` + `.model.json`. It checks the notation rules |
 | `scripts/validate_erd.py` | Self-check of any `.drawio` file (format, catalog, notation, scope, structure, layout) |
+| `scripts/export_svg.py` | `.drawio` → SVG previews. The renderer calls it; run it yourself after a manual edit of the `.drawio` |
 | `examples/task-tracker/` | The worked example (§9): input, clarification round, model and outputs |
 | `tests/test_skill.py` | Regression tests for the scripts. Run them after changing the skill |
 
@@ -241,7 +243,8 @@ python3 <skill>/scripts/render_erd.py <model.json> --out-dir db-design [--name c
 ```
 The renderer creates `db-design/` if needed and picks the next free version name
 (`conceptual-erd.drawio`, then `conceptual-erd-v2.drawio`, and so on). It never overwrites a file. It
-writes three files with the same base name: `.drawio`, `.summary.md` and `.model.json`.
+writes the files of §5.1 with the same base name. Add `--drawio-svg` only if the user asks for an
+editable SVG; use `--no-svg` only if the user does not want previews.
 
 **Step 7b. No python3 available.** Follow `references/manual-fallback.md`, and say in the summary
 that the file was hand-written and validated manually.
@@ -251,8 +254,8 @@ that the file was hand-written and validated manually.
 python3 <skill>/scripts/validate_erd.py db-design/<file>.drawio
 ```
 - `ERROR` lines must be fixed. Fix the **model** (or its `layout`) and render again. Do not patch the XML.
-  Rendering again creates the next version file. Delete the failed version files you just created in
-  this run (only those), so that the folder keeps one result per run.
+  Rendering again creates the next version. Delete the failed version's files you just created in
+  this run (only those, previews included), so that the folder keeps one result per run.
 - `WARNING` lines: fix them, or justify each one in the summary.
 - Layout errors (overlaps or lines through shapes): adjust `layout` positions or `spacing` and render
   again, at most 5 times. If errors remain, keep the best version and report them.
@@ -273,6 +276,8 @@ the user asks to.
 | `conceptual-erd.drawio` | **The deliverable.** Uncompressed diagrams.net XML (`<mxfile>`), opens with *File → Open from → Device* at https://app.diagrams.net/ or in the desktop/VS Code app |
 | `conceptual-erd.summary.md` | Human-readable summary: entities, keys, attributes, relationships with ratio and participation, notes, confirmed assumptions with their source, open questions |
 | `conceptual-erd.model.json` | The normalized model, used for regenerating and updating the diagram in later runs |
+| `conceptual-erd.svg` | Preview image, shown inline by GitHub/GitLab and in Markdown. Multi-page files get one per page: `conceptual-erd.p1.svg` (Overview), `.p2.svg` … Generated: never edit it; after a manual edit of the `.drawio`, run `python3 <skill>/scripts/export_svg.py <file>.drawio` |
+| `conceptual-erd.drawio.svg` | Only with `--drawio-svg`: the first page as an image that diagrams.net can also open and edit. Not diffable; the `.drawio` stays the source |
 
 ### 5.2 Naming and versioning
 
@@ -296,7 +301,7 @@ Relationships (5):
 - …
 Confirmed assumptions: 13 (see summary file), e.g. "A task has at most one assignee (user)"
 Open questions (drawn least-restrictive): Must every team own at least one project?
-Also written: conceptual-erd.summary.md, conceptual-erd.model.json
+Also written: conceptual-erd.summary.md, conceptual-erd.model.json, conceptual-erd.svg (preview)
 ```
 List every open question in the chat. Never bury them in the file only.
 

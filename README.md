@@ -15,7 +15,7 @@ they don't depend on any vendor-specific tool.
 
 | Skill | Area | What it does | Version |
 |---|---|---|---|
-| [`db-erd-chen`](skills/db-erd-chen/) | Database design | Generates conceptual Entity-Relationship Diagrams in Chen notation, including EER specialization, as diagrams.net (draw.io) files, from a domain description, SQL DDL or ORM models. It asks clarifying questions first, never assumes business rules, validates its output, and writes a summary of the model and its assumptions | 0.3.0 (pre-release) |
+| [`db-erd-chen`](skills/db-erd-chen/) | Database design | Generates conceptual Entity-Relationship Diagrams in Chen notation, including EER specialization, as diagrams.net (draw.io) files with SVG previews, from a domain description, SQL DDL or ORM models. It asks clarifying questions first, never assumes business rules, validates its output, and writes a summary of the model and its assumptions | 0.4.0 (pre-release) |
 
 ## Install
 
@@ -29,7 +29,7 @@ npx skills add xemiq/agent-skills --list
 npx skills add xemiq/agent-skills --skill db-erd-chen
 
 # pin a release
-npx skills add xemiq/agent-skills@v0.3.0 --skill db-erd-chen
+npx skills add xemiq/agent-skills@v0.4.0 --skill db-erd-chen
 ```
 
 As a Claude Code plugin marketplace:
@@ -48,6 +48,10 @@ Ask your agent in plain language, e.g. *"Create the ERD for this project from th
 The agent loads the matching skill from its description and follows its `SKILL.md`. Each skill
 folder documents its inputs, outputs, and a worked example (see
 [`db-erd-chen/examples/`](skills/db-erd-chen/examples/)).
+
+Example output of `db-erd-chen` (the SVG preview it writes next to the `.drawio` file):
+
+![Task Tracker conceptual ERD in Chen notation](skills/db-erd-chen/examples/task-tracker/db-design/conceptual-erd.svg)
 
 ## Repository layout
 

@@ -5,7 +5,8 @@ How to extend and maintain the `db-erd-chen` skill. SKILL.md §9 points to this 
 - **Single source of truth for styles:** `scripts/erd_catalog.py`. If the team guide (§4.5) changes,
   update `references/erd-guide.md` and `erd_catalog.py` together, render the example again
   (`render_erd.py examples/task-tracker/model.json --out examples/task-tracker/db-design/conceptual-erd.drawio --force`),
-  update the template in `references/manual-fallback.md` §2, and run `tests/test_skill.py`.
+  update the template in `references/manual-fallback.md` §2, and run `tests/test_skill.py`. The same
+  command refreshes the example's `.svg` preview, which a test also compares.
 - **New notations** (Crow's foot, IDEF1X, UML class): add a catalog module per notation (e.g.
   `erd_catalog_crowsfoot.py`) and a `"notation"` field in the model. Keep the model notation-neutral,
   which it already is: entities, ends with card/total. Add a matching rule set to the validator. Chen
@@ -15,7 +16,12 @@ How to extend and maintain the `db-erd-chen` skill. SKILL.md §9 points to this 
   multiple inheritance (shared subclasses) and union types / categories (`u` circle). Adding them means
   relaxing the single-superclass rule in `render_erd.normalize_model`, deciding how a shared subclass
   inherits its key, and adding the matching validator rules and tests (see `SpecializationTests`).
-- **Other export formats** (SVG/PNG/PDF): export from the `.drawio` with the diagrams.net desktop CLI
+- **SVG previews** (since 0.4.0): `scripts/export_svg.py` draws each page from the `.drawio` cells and
+  their styles, so it also works after manual edits. It approximates diagrams.net: glyph widths are
+  estimated (Helvetica), text wraps by estimate, double lines are a wide stroke with a white core. A
+  new shape or style in the catalog needs a matching case in `draw_vertex` / `draw_edge`, plus a test
+  in `SvgPreviewTests`.
+- **Other export formats** (PNG/PDF): export from the `.drawio` with the diagrams.net desktop CLI
   (`drawio -x -f png …`) as an *additional* artifact. The `.drawio` file stays the deliverable.
   Mermaid/PlantUML exporters, if they are ever wanted, belong in a separate skill so this one keeps
   its single output contract.

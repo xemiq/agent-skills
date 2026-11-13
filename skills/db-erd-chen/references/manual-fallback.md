@@ -23,7 +23,8 @@ renderer writes the XML, and you never edit it by hand.
    source, open questions, omitted items.
 5. The validator cannot run, so check every item of the SKILL.md §7 checklist **and** guide §5
    item by item.
-6. Say in the chat summary that the file was hand-written and validated manually.
+6. Say in the chat summary that the file was hand-written and validated manually, and that no SVG
+   preview was written (the preview needs `scripts/export_svg.py`, which needs python3).
 
 ## 2. Template
 

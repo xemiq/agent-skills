@@ -42,9 +42,11 @@ A default the user never saw in a confirmed draft (for example in a "don't ask" 
 | Huge schema (more than ~40 entities) | Agree a scope or split it into bounded contexts (one file per context), or use areas with ≤ 12 entities per detail page |
 | Entity with no relationships | Ask (B5). If the user confirms it is standalone, validate with `--allow-isolated "<Name>"` and mention it in the summary |
 | Renderer reports model errors | Fix the model and run `--check` again. These are notation violations (e.g. a weak entity without an identifying relationship). Do not bypass them |
-| Validator layout errors persist after 5 attempts | Keep the best version, list the remaining layout issues in the summary, and suggest a manual nudge in diagrams.net (moving shapes keeps all connections) |
+| Validator layout errors persist after 5 attempts | Keep the best version, list the remaining layout issues in the summary, and suggest a manual nudge in diagrams.net (moving shapes keeps all connections), followed by `python3 <skill>/scripts/export_svg.py <file>.drawio` to refresh the previews |
+| The SVG preview could not be written (renderer warning) | The `.drawio` is fine. Retry `export_svg.py <file>.drawio`; if it still fails, mention it in the summary |
+| User asks for PNG or PDF | The renderer writes SVG previews only. PNG/PDF can be exported from the `.drawio` in diagrams.net (*File → Export as*) or with its desktop CLI; that is outside this skill |
 | `db-design/` cannot be created or written (permissions, read-only filesystem, path is a file) | Report the exact error. Ask for another folder inside the repository and wait; never pick one silently. If no file can be written at all, print the full XML in a fenced block, with instructions to save it as `db-design/conceptual-erd.drawio` |
 | A file with the target name already exists | Never overwrite. The renderer picks the next `-vN`. If the user explicitly asks to replace a file, use `--out <path> --force` only for that file |
 | `python3` not available | Follow `references/manual-fallback.md` and say so in the summary |
-| User asks for Mermaid/PlantUML/SQL as well | Explain that this skill only outputs Chen diagrams.net XML. Deliver the ERD. Other formats are separate tasks outside this skill |
+| User asks for Mermaid/PlantUML/SQL as well | Explain that this skill outputs Chen diagrams.net XML (plus SVG previews). Deliver the ERD. Other formats are separate tasks outside this skill |
 | User asks for physical details inside the ERD (types, FKs) | Explain the conceptual-only rule (guide §1). Offer to list such details in a separate physical design document if they want one |
