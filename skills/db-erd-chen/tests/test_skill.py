@@ -96,22 +96,22 @@ class RenderValidateTests(unittest.TestCase):
 
 
 class DocumentationSyncTests(unittest.TestCase):
-    def test_skill_md_snippet_matches_committed_example(self):
-        skill = read(os.path.join(SKILL, "SKILL.md"))
+    def test_fallback_template_matches_committed_example(self):
+        skill = read(os.path.join(SKILL, "references", "manual-fallback.md"))
         snippet = skill.split("```xml", 1)[1].split("```", 1)[0]
         example = read(os.path.join(SKILL, "examples", "task-tracker", "db-design", "conceptual-erd.drawio"))
         example_lines = {ln.strip() for ln in example.splitlines()}
         for ln in snippet.splitlines():
             ln = ln.strip()
             if ln and not ln.startswith("<!--"):
-                self.assertIn(ln, example_lines, f"SKILL.md snippet line not in example output: {ln}")
+                self.assertIn(ln, example_lines, f"manual-fallback.md template line not in example output: {ln}")
 
     def test_committed_example_is_current(self):
         with tempfile.TemporaryDirectory() as tmp:
             render_erd.main([EXAMPLE, "--out-dir", tmp])
             fresh = read(os.path.join(tmp, "conceptual-erd.drawio"))
         committed = read(os.path.join(SKILL, "examples", "task-tracker", "db-design", "conceptual-erd.drawio"))
-        self.assertEqual(fresh, committed, "re-render the example (see SKILL.md section 12)")
+        self.assertEqual(fresh, committed, "re-render the example (see references/maintenance.md)")
 
 
 class ModelRejectionTests(unittest.TestCase):

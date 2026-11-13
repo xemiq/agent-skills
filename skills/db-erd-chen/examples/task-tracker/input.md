@@ -1,6 +1,6 @@
 # Worked example: Task Tracker
 
-This is the full run behind SKILL.md §11. Use it as a demonstration and as an acceptance test. An
+This is the full run behind SKILL.md §9. Use it as a demonstration and as an acceptance test. An
 agent given the same description and the same answers must produce an equivalent model (same
 entities, keys, relationships, cardinalities and participation).
 

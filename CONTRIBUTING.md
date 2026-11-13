@@ -55,10 +55,12 @@ metadata:
 ---
 ```
 
-A good `SKILL.md` covers: metadata, trigger conditions, scope (does / does not), inputs,
-clarifying questions, a step-by-step workflow, the output specification, notation or format
-rules, a validation checklist, error handling, a worked example, and extensibility notes.
-`skills/db-erd-chen/SKILL.md` is the reference implementation.
+A good skill covers: trigger conditions, scope (does / does not), inputs, clarifying questions, a
+step-by-step workflow, the output specification, notation or format rules, a validation checklist,
+error handling, a worked example, and extensibility notes. Keep in `SKILL.md` what the agent needs
+on every run, and move what it needs only in some runs (rare edge cases, fallbacks, maintenance)
+to `references/`, with a line in `SKILL.md` saying when to read each file. Metadata belongs in the
+front matter, not in a section. `skills/db-erd-chen/SKILL.md` is the reference implementation.
 
 ## Workflow
 
