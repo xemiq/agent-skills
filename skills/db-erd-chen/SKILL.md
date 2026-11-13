@@ -1,7 +1,8 @@
 ---
 name: db-erd-chen
 description: >-
-  Generates conceptual/logical Entity-Relationship Diagrams (ERDs) in Chen notation as uncompressed
+  Generates conceptual/logical Entity-Relationship Diagrams (ERDs) in Chen notation, including EER
+  specialization/generalization, as uncompressed
   diagrams.net (draw.io) XML files saved in the project's db-design/ folder, together with a short
   summary of entities, relationships and confirmed assumptions. Use it when the user asks to create,
   draw, update, version or reverse-engineer an ERD, entity-relationship diagram, conceptual or logical
@@ -12,7 +13,7 @@ license: Apache-2.0
 compatibility: Any coding agent that can read/write files and run python3 (3.9+, standard library only). Without python3 a manual fallback is defined (references/manual-fallback.md).
 metadata:
   author: XemiQ
-  version: "0.2.2"
+  version: "0.3.0"
   repository: https://github.com/xemiq/agent-skills
   homepage: https://xemiqlab.com/en
 ---
@@ -74,8 +75,10 @@ migrations or ORM models, or a new version of an ERD already in `db-design/`.
 
 **In scope:** entities, weak entities, attributes (key, partial key, multivalued, derived,
 composite), named relationships with cardinality and participation, relationship attributes,
-recursive and ternary relationships, identifying relationships, `Constraint:`/`Rule:` notes,
-multi-page files for large models. **Out of scope:** everything physical (guide §1), running SQL or
+recursive and ternary relationships, identifying relationships, specialization/generalization (EER:
+disjoint/overlapping, total/partial, defining attribute, multi-level hierarchies), `Constraint:`/`Rule:`
+notes, multi-page files for large models. **Out of scope:** multiple inheritance and union types
+(categories) for now, everything physical (guide §1), running SQL or
 connecting to databases, inventing rules, enums or limits, and normalization or performance audits
 (mention them as follow-ups at most).
 
@@ -129,6 +132,9 @@ what is *derived* and what needs a *question*.
   attributes become `Constraint: <Attribute> is unique.` notes.
 - B10. Single- or multi-valued? It is unknown whether an attribute can hold several values (a
   maximum, i.e. a business rule).
+- B11. Specialization or type attribute? Subtypes exist (*kinds of*, `type` column, ORM inheritance),
+  but it is unclear whether they have their own attributes or relationships. Own properties →
+  specialization; none → a `Type` attribute plus a `Rule:` note.
 
 **Non-blocking**: there is a safe, least-restrictive default:
 - N1. Minimum participation not stated → **partial** (single line). A `(default)` is **never** `total`, however obvious.
@@ -141,6 +147,8 @@ what is *derived* and what needs a *question*.
 - N6. Diagram language: the request or source is not in English → ask which language to use for
   names and notes (*default: English*). Draft the names in the language you propose. The model's
   `language` field records the answer.
+- N7. Disjointness or completeness of a specialization not stated → **overlapping (`o`)** and
+  **partial** (single superclass line). A `(default)` is **never** `d` or `total`.
 
 ### 3.2 Ask: one batched round, then wait
 
@@ -151,6 +159,8 @@ what is *derived* and what needs a *question*.
    - every relationship with **both** ends: `Team (1) —Owns— (N, total) Project`. Mark each end's
      participation as `total` or `partial`. Mark every value that is a default rather than a stated or
      schema fact with `(default)`;
+   - every specialization with its constraints: `Person ⇒ {Student, Employee} (o (default), partial
+     (default), defined by Person type)`, and the subclasses listed without keys;
    - the notes (`Constraint:` / `Rule:`) you intend to draw.
    Only what the draft shows explicitly can later be recorded as `confirmed_by: "user"`.
 2. Put **blocking questions first**, then non-blocking ones, each tagged `(blocking)` or
@@ -158,7 +168,8 @@ what is *derived* and what needs a *question*.
    in one question. Ask at most **10 questions per round**. Non-blocking questions state their
    default: *"(default: partial, single line)"*. Blocking questions may state your *recommended*
    answer, but it is never applied without an answer.
-3. **Self-check the draft before sending it.** Any `total (default)` must become `partial (default)`.
+3. **Self-check the draft before sending it.** Any `total (default)` must become `partial (default)`,
+   and any `d (default)` must become `o (default)`.
    Every unstated maximum must be `?` with a blocking question. Every *species/type/category/status*-like
    value needs a B3 question. If the request is not in English, the N6 language question must be there.
 4. End with "Please answer, or confirm the draft as is." (in the user's language). Then **stop and
@@ -179,13 +190,13 @@ what is *derived* and what needs a *question*.
 
 Everything else goes into `open_questions` and is drawn in its **least restrictive** form: partial
 participation, the "many" side when the maximum is unknown, multivalued when single vs multi-valued
-is unknown, and no note. A default the user never saw must be listed in `open_questions`.
+is unknown, overlapping and partial specializations, and no note. A default the user never saw must be listed in `open_questions`.
 
 ### 3.4 When the user cannot or will not answer
 
 The hard limits: a **non-interactive run** writes no file (it outputs the draft and the questions);
 **"don't ask, just generate"** never generates while blocking points remain; and B1, B3, B4, B5,
-B6 and B8 can never be delegated. For the full procedure and the fixed defaults of delegated
+B6, B8 and B11 can never be delegated. For the full procedure and the fixed defaults of delegated
 decisions, read `references/edge-cases.md` §1.
 
 ## 4. Workflow (follow in order)
@@ -197,10 +208,12 @@ load the latest `.model.json` (highest `-vN`) as the starting model.
 **Step 2. Extract entities.** Use `references/source-mapping.md`. For each entity, record its name
 (singular, Title Case), whether it is strong or weak, and its owner if weak. Drop implementation
 artifacts: junction tables become relationships, value tables become multivalued attributes,
-audit/technical tables are omitted.
+audit/technical tables are omitted. Subtypes become a specialization (superclass + subclasses) when they
+have their own attributes or relationships (B11 if unclear).
 
 **Step 3. Extract attributes.** For each entity, pick **exactly one** key (a natural key if one
-exists, otherwise `<Entity> ID`) or, for a weak entity, one partial key. Then classify the other
+exists, otherwise `<Entity> ID`) or, for a weak entity, one partial key. A subclass gets **no** key: it
+inherits its superclass's key, and keeps only its own attributes. Then classify the other
 attributes: simple, multivalued, derived or composite. Remove FK columns, surrogate ids that a natural
 key replaces, data types and technical columns (record the omissions in `omitted`). Name attributes in Sentence case.
 
@@ -308,8 +321,12 @@ are the points that need your judgement:
   singular Title Case nouns. Attributes are in Sentence case, and English booleans start with
   `Is`/`Has`/`Must`. Relationships are verb phrases. Notes start with `Constraint:` or `Rule:`, or the
   chosen language's prefixes (Spanish `Restricción:` / `Regla:`).
-- **Multi-page:** the Overview shows every entity and relationship, without attributes, and repeats
-  every note. Each entity has exactly one home page with all its attributes. Elsewhere it is a
+- **Specialization (EER):** a purple circle between the superclass and its subclasses, `d` (disjoint)
+  or `o` (overlapping); a double superclass line = total. Subclasses inherit the key and attributes, so
+  they have no key, are never weak, and have exactly one superclass. Use it only when subtypes have
+  their own attributes or relationships (guide §2.10). Never model subtypes as 1:1 `Is a` relationships.
+- **Multi-page:** the Overview shows every entity, relationship and specialization, without attributes,
+  and repeats every note. Each entity has exactly one home page with all its attributes. Elsewhere it is a
   reference entity without attributes. Every relationship appears on at least one detail page.
 
 ## 7. Quality checklist
@@ -324,6 +341,7 @@ diagrams.net, and it cannot judge meaning. Check these yourself, against the sou
 - [ ] Total participation appears only where `stated`, `user` or `schema` confirms it.
 - [ ] Relationship verbs read correctly in both directions, and the labels are on the right side.
 - [ ] Weak entities really depend on their owner, and M:N relationships really have no history or identity.
+- [ ] Every subclass really has its own attributes or relationships; `d` and total specializations are confirmed.
 - [ ] `open_questions` lists everything unresolved, and the chat summary repeats it.
 - [ ] Previous versions in `db-design/` are untouched.
 

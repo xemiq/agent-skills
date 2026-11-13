@@ -19,7 +19,7 @@ are defined in SKILL.md §3.1.
   B7 roles → descriptive role names derived from the verb (e.g. `mentor` / `mentee`);
   B9 → the attribute the source names first among the candidate keys, or `<Entity> ID` if there is
   none; B10 → multivalued.
-  B1, B3, B4, B5, B6 and B8 cannot be delegated, because they change what exists in the model.
+  B1, B3, B4, B5, B6, B8 and B11 cannot be delegated, because they change what exists in the model.
   Recommend an answer and ask for a yes/no.
 
 A default the user never saw in a confirmed draft (for example in a "don't ask" run) is not
@@ -36,7 +36,9 @@ A default the user never saw in a confirmed draft (for example in a "don't ask" 
 | Unsupported source (binary DB dump, proprietary model file, spreadsheet you cannot parse, image while you cannot view images) | Say what you cannot read and ask for a supported one: text description, SQL DDL (e.g. `pg_dump --schema-only`), ORM files, or an exported `.drawio` |
 | Compressed `.drawio` input | `python3 <skill>/scripts/validate_erd.py --decompress in.drawio out.drawio`, then read it |
 | NoSQL / document models | Referenced documents become relationships. Embedded arrays become weak entities or multivalued/composite attributes, asked as B3/B4 |
-| Inheritance / polymorphic associations | `references/source-mapping.md` §2 (inheritance and polymorphic rows). These always need a question |
+| Inheritance / subtypes | A specialization (SKILL.md §6) when the subtypes have their own attributes or relationships; see the inheritance rows of `references/source-mapping.md` §1–§3. Unclear → B11 |
+| Polymorphic associations (`owner_type` + `owner_id`) | `references/source-mapping.md` §2 (polymorphic row). Always a question |
+| Subtypes with several superclasses (shared subclass) or union types / categories | Not supported yet (each subclass has one superclass). Say so, and agree a workaround with the user: pick the main superclass and add a `Rule:` note, or keep separate entities with relationships |
 | Huge schema (more than ~40 entities) | Agree a scope or split it into bounded contexts (one file per context), or use areas with ≤ 12 entities per detail page |
 | Entity with no relationships | Ask (B5). If the user confirms it is standalone, validate with `--allow-isolated "<Name>"` and mention it in the summary |
 | Renderer reports model errors | Fix the model and run `--check` again. These are notation violations (e.g. a weak entity without an identifying relationship). Do not bypass them |

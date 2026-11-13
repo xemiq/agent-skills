@@ -28,6 +28,11 @@ NOTE = ("shape=note;whiteSpace=wrap;html=1;size=14;align=left;spacingLeft=6;spac
         "fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;")
 TEXT = "text;html=1;align=left;verticalAlign=top;fontSize=11;whiteSpace=wrap;"
 LEGEND = TEXT + "strokeColor=#999999;fillColor=#fafafa;spacing=8;"
+# EER specialization / generalization (Elmasri-Navathe circle): value "d" (disjoint) or "o" (overlapping)
+SPECIALIZATION = ("ellipse;whiteSpace=wrap;html=1;align=center;aspect=fixed;fillColor=#e1d5e7;"
+                  "strokeColor=#9673a6;fontStyle=1;fontSize=12;")
+ISA_EDGE = "endArrow=none;html=1;rounded=0;strokeColor=#9673a6;fontSize=11;labelBackgroundColor=#ffffff;"
+ISA_TOTAL_EDGE = "shape=link;html=1;rounded=0;strokeColor=#9673a6;fontSize=11;labelBackgroundColor=#ffffff;"
 
 PARTIAL_KEY_TEMPLATE = '<span style="border-bottom: 1px dashed;">{}</span>'
 
@@ -46,6 +51,7 @@ VERTEX_CATALOG = {
     "derived": (DERIVED, 124, 44),
     "sub_attribute": (SUB_ATTRIBUTE, 104, 34),
     "note": (NOTE, 300, 90),
+    "specialization": (SPECIALIZATION, 40, 40),
     "title": (TEXT, None, None),
     "legend": (LEGEND, None, None),
 }
@@ -53,6 +59,8 @@ EDGE_CATALOG = {
     "attr_edge": ATTR_EDGE,
     "partial_edge": PARTIAL_EDGE,
     "total_edge": TOTAL_EDGE,
+    "isa_edge": ISA_EDGE,
+    "isa_total_edge": ISA_TOTAL_EDGE,
 }
 
 LEGEND_HTML = (
@@ -72,6 +80,13 @@ LEGEND_HTML = (
     "1 / N / M next to an entity: cardinality of that entity<br>"
     "Pink note: constraint or business rule<br>"
     "Grey dashed rectangle: reference entity (attributes on its home page)"
+)
+
+LEGEND_ISA_HTML = (
+    "<br>Purple circle: specialization (d = disjoint, o = overlapping subclasses)<br>"
+    "Double line from the superclass to the circle: total specialization<br>"
+    "Text on that line: defining attribute<br>"
+    "Subclass: inherits the key and attributes of its superclass"
 )
 
 
@@ -113,6 +128,12 @@ LEGEND_HTML_ES = (
     "Nota rosa: restricción o regla de negocio<br>"
     "Rectángulo gris discontinuo: entidad de referencia (atributos en su página principal)"
 )
+LEGEND_ISA_HTML_ES = (
+    "<br>Círculo morado: especialización (d = subclases disjuntas, o = solapadas)<br>"
+    "Línea doble de la superclase al círculo: especialización total<br>"
+    "Texto en esa línea: atributo definitorio<br>"
+    "Subclase: hereda la clave y los atributos de su superclase"
+)
 
 LANG = {
     "en": {
@@ -132,6 +153,10 @@ LANG = {
         "omitted": "Omitted from the conceptual model", "none": "None.", "nothing": "Nothing.",
         "kinds": {"multivalued": "multivalued", "derived": "derived"},
         "sources": {"user": "user", "stated": "stated", "schema": "schema", "convention": "convention"},
+        "legend_isa": LEGEND_ISA_HTML, "subclass_of": "Subclass of {}", "inherited": "inherited from {}",
+        "specializations": "Specializations",
+        "isa_header": "| Superclass | Subclasses | Disjointness | Completeness | Defining attribute |",
+        "disjoint": "disjoint", "overlapping": "overlapping",
     },
     "es": {
         "title": "ERD conceptual", "page_label": "Página", "single_page": "1 - ERD conceptual",
@@ -150,6 +175,10 @@ LANG = {
         "omitted": "Omitido del modelo conceptual", "none": "Ninguno.", "nothing": "Nada.",
         "kinds": {"multivalued": "multivaluado", "derived": "derivado"},
         "sources": {"user": "usuario", "stated": "declarado", "schema": "esquema", "convention": "convención"},
+        "legend_isa": LEGEND_ISA_HTML_ES, "subclass_of": "Subclase de {}", "inherited": "heredada de {}",
+        "specializations": "Especializaciones",
+        "isa_header": "| Superclase | Subclases | Disyunción | Completitud | Atributo definitorio |",
+        "disjoint": "disjunta", "overlapping": "solapada",
     },
 }
 NOTE_PREFIXES = sorted({v for L in LANG.values() for v in (L["constraint"], L["rule"])})

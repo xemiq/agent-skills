@@ -52,6 +52,8 @@ Our ERDs describe the **conceptual/logical model**: what the business needs to s
 | `1`, `N`, `M` on the line | Cardinality ratio | `1:N`, `M:N` |
 | Pink note | Constraint or business rule that the symbols cannot express | "Every Invoice belongs to exactly one Order or one Subscription" |
 | Grey dashed rectangle | Reference entity: fully defined (with attributes) on another page | `Customer` shown on the Orders page |
+| Purple circle with `d` / `o` | Specialization: the superclass line enters the circle, one line leaves it per subclass. `d` = disjoint, `o` = overlapping subclasses | `Person` → (`o`) → `Student`, `Employee` |
+| Double line superclass → circle | Total specialization: every superclass instance belongs to at least one subclass | Every `Person` is a `Student` or an `Employee` |
 
 ### 2.2 Entities
 
@@ -140,6 +142,28 @@ Wording: start with `Constraint: …` for integrity constraints and `Rule: …` 
 - Use one language per diagram. Do not mix languages in names.
 - The notation (symbols, `1`/`N`/`M`, line styles) is the same in every language. Titles, page names and the legend follow the diagram language when a translation exists. Spanish is translated (`ERD conceptual`, `1 - Vista general`, `Leyenda`). Other languages keep these texts in English.
 
+### 2.10 Specialization and generalization (EER)
+
+Use a specialization when some instances of an entity (the **superclass**) form subtypes (**subclasses**)
+with **their own attributes or relationships**. If the subtypes differ only by a value, use a simple
+attribute (`Person type`) plus a `Rule:` note listing the values instead.
+
+- Draw a **purple circle** between the superclass and its subclasses. One line goes from the superclass
+  to the circle, and one line from the circle to each subclass.
+- The letter in the circle is the **disjointness** constraint: `d` (disjoint: an instance belongs to at
+  most one subclass) or `o` (overlapping: it may belong to several).
+- The superclass line shows the **completeness** constraint: a **double line** = total (every superclass
+  instance belongs to at least one subclass), a single line = partial. Subclass lines are always single.
+- When membership is decided by an attribute of the superclass (*attribute-defined* specialization),
+  write that attribute's name on the superclass line, e.g. `Person type`.
+- A **subclass inherits** the key, the attributes and the relationships of its superclass. It has **no
+  key of its own** and is never a weak entity. Draw only its specific attributes and relationships.
+- Each subclass has exactly one superclass. A superclass may have several specializations (e.g.
+  `Employee` by job and by contract type), and a subclass may itself be specialized
+  (`Person` → `Employee` → `Professor`).
+- Like total participation, `d` and total completeness are constraints: draw them only when they are
+  **confirmed**. When in doubt, draw `o` with a single line and record the open question.
+
 ---
 
 ## 3. Organizing the diagram file
@@ -156,7 +180,9 @@ A single `.drawio` file holds several pages (tabs):
 Consistency rules:
 1. **Every entity has exactly one "home" page**, where it is drawn with all of its attributes.
 2. On any other page it is drawn as a **reference entity**: grey, dashed border, italic text, **no attributes**.
-3. **Every relationship** appears on the Overview and on **at least one** detail page.
+3. **Every relationship** appears on the Overview and on **at least one** detail page. **Every
+   specialization** appears on the Overview and on the home page of its superclass and of each subclass
+   (with the members from other pages drawn as reference entities).
 4. Constraint notes go on the page where the rule matters. The Overview repeats all of them.
 5. Every page has a **title** (`<Project name> — Conceptual ERD`, plus the page name) and a **legend** of the notation.
 
@@ -274,10 +300,15 @@ To keep diagrams consistent across projects, use **exactly** these styles and si
 | Attribute connector | — | `endArrow=none;html=1;rounded=0;strokeColor=#888888;` |
 | Partial-participation connector | — | `endArrow=none;html=1;rounded=0;fontStyle=1;fontSize=13;labelBackgroundColor=#ffffff;` |
 | Total-participation connector (double line) | — | `shape=link;html=1;rounded=0;fontStyle=1;fontSize=13;labelBackgroundColor=#ffffff;` |
+| Specialization circle | 40×40 | `ellipse;whiteSpace=wrap;html=1;align=center;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=12;` (`value` = `d` or `o`) |
+| Specialization line (subclass, or partial superclass line) | — | `endArrow=none;html=1;rounded=0;strokeColor=#9673a6;fontSize=11;labelBackgroundColor=#ffffff;` |
+| Total specialization line (superclass, double) | — | `shape=link;html=1;rounded=0;strokeColor=#9673a6;fontSize=11;labelBackgroundColor=#ffffff;` |
 | Constraint note | 300×90 | `shape=note;whiteSpace=wrap;html=1;size=14;align=left;spacingLeft=6;spacingRight=6;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;` |
 | Title / legend | free | `text;html=1;align=left;verticalAlign=top;fontSize=11;whiteSpace=wrap;` (the legend adds `strokeColor=#999999;fillColor=#fafafa;spacing=8;`) |
 
-Color code: blue for entities, yellow for relationships, white for attributes, pink for rules, grey for references.
+Color code: blue for entities, yellow for relationships, white for attributes, pink for rules, grey for references, purple for specializations.
+
+Specialization lines go **from the superclass (source) to the circle (target)** and **from the circle (source) to each subclass (target)**. The defining attribute, if any, is the `value` of the superclass line.
 
 ### 4.6 Id convention
 
@@ -285,6 +316,7 @@ Color code: blue for entities, yellow for relationships, white for attributes, p
 |---|---|---|
 | `E_<entity>` | Entities | `E_order`, `E_orderline` |
 | `R_<relationship>` | Relationship diamonds | `R_places`, `R_contains` |
+| `G_<specialization>` | Specialization circles | `G_personrole` |
 | `a<n>` | Attributes | `a15` |
 | `s<n>` | Sub-attributes of composites | `s22` |
 | `e<n>` | Connectors | `e40` |
@@ -370,6 +402,7 @@ Use this list when creating a diagram and when reviewing someone else's.
 - [ ] Total participation (double line) is used only for confirmed rules.
 - [ ] Attributes of M:N relationships hang from the diamond.
 - [ ] Rules that cannot be drawn are written as `Constraint:` / `Rule:` notes.
+- [ ] Every specialization circle says `d` or `o`, has one superclass line and single subclass lines; subclasses have no key of their own; `d` and the double superclass line are used only for confirmed rules.
 - [ ] Open questions and assumptions are listed in the pull request or design doc that accompanies the diagram.
 
 **Organization**
@@ -417,5 +450,8 @@ Run it with `python3 check_drawio.py db-design/conceptual-erd.drawio`.
 | Identifying relationship | The relationship that gives a weak entity its identity |
 | Cardinality ratio | The maximum number of associated instances (1, N, M) |
 | Total / partial participation | Whether taking part in a relationship is mandatory or optional for each instance |
+| Specialization / generalization | Splitting an entity (superclass) into subtypes (subclasses) that inherit its key and attributes; generalization is the same structure found bottom-up |
+| Disjoint / overlapping | Whether an instance can belong to one subclass at most (`d`) or to several (`o`) |
+| Total / partial specialization | Whether every superclass instance must belong to at least one subclass |
 | Conceptual model | A technology-independent representation of the business data |
 | Physical model | The concrete implementation: tables, columns, types, indexes (outside the scope of these ERDs) |
