@@ -544,6 +544,185 @@ class LanguageTests(unittest.TestCase):
         self.assertTrue(any("foreign key" in e for e in rep.errors), rep.errors)
 
 
+UNIVERSITY = os.path.join(HERE, "fixtures", "university.model.json")
+
+
+def _multi_university():
+    """University model split over two areas, with subclasses on another page than their superclass."""
+    m = load(UNIVERSITY)
+    m["areas"] = [{"id": "people", "name": "People"}, {"id": "teaching", "name": "Teaching"}]
+    for e in m["entities"]:
+        e["area"] = "people" if e["id"] in ("person", "employee") else "teaching"
+    m.pop("layout")
+    return m
+
+
+class SpecializationTests(unittest.TestCase):
+    """EER specialization / generalization (v0.3.0): d/o circle, total line, subclasses inherit the key."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.n = 0
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def render(self, model):
+        self.n += 1
+        path = os.path.join(self.tmp.name, f"m{self.n}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(model, f, ensure_ascii=False)
+        out = os.path.join(self.tmp.name, f"out{self.n}")
+        self.assertEqual(render_erd.main([path, "--out-dir", out]), 0)
+        return os.path.join(out, "conceptual-erd.drawio"), os.path.join(out, "conceptual-erd.summary.md")
+
+    def assert_rejected(self, mutate, fragment):
+        m = load(UNIVERSITY)
+        mutate(m)
+        with self.assertRaises(render_erd.ModelError) as cm:
+            render_erd.normalize_model(m)
+        self.assertIn(fragment, " | ".join(cm.exception.problems))
+
+    def errors_for(self, xml):
+        path = os.path.join(self.tmp.name, "case.drawio")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(xml)
+        rep, code = validate_erd.validate(path)
+        return code, " | ".join(rep.errors)
+
+    # --- rendering
+    def test_single_page_renders_and_validates(self):
+        drawio, summary = self.render(load(UNIVERSITY))
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 0, rep.errors)
+        self.assertEqual(rep.warnings, [])
+        xml = read(drawio)
+        self.assertIn('id="G_personrole" value="o"', xml)
+        self.assertIn('id="G_employeekind" value="o"', xml)
+        self.assertRegex(xml, r'value="Person type" style="shape=link;[^"]*strokeColor=#9673a6;[^"]*" edge="1" '
+                              r'parent="1" source="E_person" target="G_personrole"')
+        self.assertIn("Purple circle: specialization", xml)
+
+    def test_summary_lists_specializations_and_inherited_keys(self):
+        _, summary = self.render(load(UNIVERSITY))
+        s = read(summary)
+        self.assertIn("## Specializations (2)", s)
+        self.assertIn("| Person | Student, Employee | overlapping | total | Person type |", s)
+        self.assertIn("| Employee | Professor | overlapping | partial | — |", s)
+        self.assertIn("| Student | Subclass of Person | inherited from Person |", s)
+
+    def test_disjoint_label(self):
+        m = load(UNIVERSITY)
+        m["specializations"][0]["disjoint"] = True
+        drawio, _ = self.render(m)
+        self.assertIn('id="G_personrole" value="d"', read(drawio))
+
+    def test_multi_page_renders_and_validates(self):
+        drawio, _ = self.render(_multi_university())
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 0, rep.errors)
+        pages = read(drawio).split("</diagram>")
+        for pg in pages[:3]:  # Overview, People, Teaching all show the Person specialization
+            self.assertIn('id="G_personrole"', pg)
+        teaching = [p for p in pages if 'name="3 - Teaching"' in p][0]
+        self.assertRegex(teaching, r'id="E_person" value="Person" style="[^"]*dashed=1')  # reference superclass
+
+    def test_models_without_specializations_are_unchanged(self):
+        xml = render_erd.build(render_erd.normalize_model(load(EXAMPLE)))[0]
+        self.assertNotIn("Purple circle", xml)
+        m = render_erd.normalize_model(load(EXAMPLE))
+        self.assertNotIn("specializations", m)  # the normalized model.json keeps its old shape
+
+    def test_spanish_texts(self):
+        m = load(UNIVERSITY)
+        m["language"] = "es"
+        drawio, summary = self.render(m)
+        self.assertIn("Círculo morado: especialización", read(drawio))
+        s = read(summary)
+        self.assertIn("## Especializaciones (2)", s)
+        self.assertIn("| Subclase de Person | heredada de Person |", s)
+        self.assertIn("| solapada | total |", s)
+
+    # --- model rules
+    def test_subclass_cannot_have_own_key(self):
+        self.assert_rejected(lambda m: m["entities"][1]["attributes"].append({"name": "Student number", "kind": "key"}),
+                             "inherits the key")
+
+    def test_superclass_still_needs_a_key(self):
+        self.assert_rejected(lambda m: m["entities"][0]["attributes"].pop(0), "exactly one 'key'")
+
+    def test_subclass_cannot_be_weak(self):
+        def f(m):
+            m["entities"][1]["weak"] = True
+        self.assert_rejected(f, "cannot be weak")
+
+    def test_single_inheritance_only(self):
+        self.assert_rejected(lambda m: m["specializations"][1]["subclasses"].append("student"),
+                             "more than one specialization")
+
+    def test_cycle_rejected(self):
+        self.assert_rejected(lambda m: m["specializations"].append(
+            {"id": "loop", "superclass": "professor", "subclasses": ["person"]}), "cyclic")
+
+    def test_unknown_and_self_subclass(self):
+        self.assert_rejected(lambda m: m["specializations"][0]["subclasses"].append("ghost"), "unknown subclass")
+        self.assert_rejected(lambda m: m["specializations"][1]["subclasses"].append("employee"), "of itself")
+
+    def test_defining_attribute_must_exist(self):
+        def f(m):
+            m["specializations"][0]["defining_attribute"] = "Kind"
+        self.assert_rejected(f, "defining attribute 'Kind'")
+
+    def test_inherited_defining_attribute_is_accepted(self):
+        m = load(UNIVERSITY)
+        m["specializations"][1]["defining_attribute"] = "Person type"  # Employee inherits it from Person
+        render_erd.normalize_model(m)
+
+    def test_bad_types_and_unknown_layout_circle(self):
+        for mutate, frag in (
+                (lambda m: m["specializations"][0].update(subclasses="student"), "non-empty list"),
+                (lambda m: m["specializations"][0].update(disjoint="yes"), "true or false"),
+                (lambda m: m["layout"]["main"].update(circles={"nope": [1, 1]}), "unknown specialization")):
+            m = load(UNIVERSITY)
+            mutate(m)
+            with self.assertRaises(render_erd.ModelError) as cm:
+                render_erd.normalize_model(m)
+            self.assertIn(frag, " | ".join(cm.exception.problems))
+
+    def test_subclass_reachable_only_through_specialization(self):
+        m = load(UNIVERSITY)  # Employee has no relationship: only its ISA links connect it
+        self.assertFalse(any("employee" in [e["entity"] for e in r["ends"]] for r in m["relationships"]))
+        drawio, _ = self.render(m)
+        rep, code = validate_erd.validate(drawio)
+        self.assertEqual(code, 0, rep.errors)
+
+    # --- validator
+    def test_validator_rejects_hand_edits(self):
+        good = read(self.render(load(UNIVERSITY))[0])
+        bad_label = good.replace('id="G_personrole" value="o"', 'id="G_personrole" value="x"', 1)
+        self.assertIn("labelled 'd'", self.errors_for(bad_label)[1])
+        sub_line = re.search(r'<mxCell id="e\d+" style="endArrow=none;html=1;rounded=0;strokeColor=#9673a6;[^"]*" '
+                             r'edge="1" parent="1" source="G_personrole" target="E_student"', good).group(0)
+        double = good.replace(sub_line, sub_line.replace("endArrow=none;html=1;", "shape=link;html=1;"), 1)
+        self.assertIn("must be a single line", self.errors_for(double)[1])
+        key = good.replace('value="Enrollment year" style="ellipse;whiteSpace=wrap;html=1;align=center;'
+                           'fillColor=#ffffff;strokeColor=#666666;fontSize=11;"',
+                           'value="Enrollment year" style="ellipse;whiteSpace=wrap;html=1;align=center;'
+                           'fillColor=#ffffff;strokeColor=#666666;fontSize=11;fontStyle=4;"', 1)
+        self.assertIn("must not have its own key", self.errors_for(key)[1])
+        no_super = re.sub(r'<mxCell id="e\d+" value="Person type" style="[^"]*" edge="1" parent="1" '
+                          r'source="E_person" target="G_personrole">.*?</mxCell>', "", good, count=1, flags=re.S)
+        self.assertIn("exactly one superclass line", self.errors_for(no_super)[1])
+
+    def test_validator_overview_must_match_details(self):
+        good = read(self.render(_multi_university())[0])
+        ov = good.split("</diagram>")[0]
+        bad = good.replace(ov, ov.replace('id="G_personrole" value="o"', 'id="G_personrole" value="d"', 1), 1)
+        code, e = self.errors_for(bad)
+        self.assertEqual(code, 1)
+        self.assertIn("missing from the Overview", e)
+
+
 if __name__ == "__main__":
     import contextlib
     import io

@@ -38,7 +38,7 @@ ID_RE = re.compile(r"^[a-z][a-z0-9]*$")
 
 SIZE = {
     "entity": (150, 56), "relationship": (130, 74), "attribute": (124, 44),
-    "sub_attribute": (104, 34), "note": (300, 90),
+    "sub_attribute": (104, 34), "note": (300, 90), "specialization": (40, 40),
 }
 DETAIL_SPACING = (560, 440)
 OVERVIEW_SPACING = (380, 300)
@@ -138,6 +138,21 @@ def check_types(m):
         check_attrs(lst(r, "attributes", where), where)
         if "pages" in r and not (isinstance(r["pages"], list) and all(isinstance(x, str) for x in r["pages"])):
             p.append(f"{where}: 'pages' must be a list of area ids")
+    for s in dicts(lst(m, "specializations", "model"), "specializations"):
+        where = f"specialization {s.get('id')!r}"
+        for k in ("id", "superclass"):
+            if not _is_str(s.get(k)):
+                p.append(f"{where}: '{k}' must be a non-empty string")
+        subs = s.get("subclasses")
+        if not (isinstance(subs, list) and subs and all(_is_str(x) for x in subs)):
+            p.append(f"{where}: 'subclasses' must be a non-empty list of entity ids")
+        for k in ("disjoint", "total"):
+            if k in s and not isinstance(s[k], bool):
+                p.append(f"{where}: '{k}' must be true or false")
+        if s.get("defining_attribute") is not None and not _is_str(s["defining_attribute"]):
+            p.append(f"{where}: 'defining_attribute' must be a non-empty string")
+        if "pages" in s and not (isinstance(s["pages"], list) and all(isinstance(x, str) for x in s["pages"])):
+            p.append(f"{where}: 'pages' must be a list of area ids")
     for n in dicts(lst(m, "notes", "model"), "notes"):
         if not isinstance(n.get("text"), str):
             p.append("every note needs a 'text' string")
@@ -161,7 +176,7 @@ def check_types(m):
                 if not isinstance(v, dict):
                     p.append(f"layout {pg!r} must be an object")
                     continue
-                for key in ("positions", "diamonds"):
+                for key in ("positions", "diamonds", "circles"):
                     sub = v.get(key)
                     if sub is None:
                         continue
@@ -185,7 +200,11 @@ def normalize_model(m):
                          ("language", "en")):
         if m.get(key) is None:
             m[key] = default
+    if not m.get("specializations"):
+        m.pop("specializations", None)  # optional (v0.3.0); absent keeps older models byte-identical
     areas, entities, rels, notes = m["areas"], m["entities"], m["relationships"], m["notes"]
+    specs = m.get("specializations", [])
+    subclass_ids = {sub for s in specs for sub in s["subclasses"]}  # subclasses inherit the key
     if not entities:
         p.append("'entities' must contain at least one entity")
 
@@ -236,7 +255,14 @@ def normalize_model(m):
                 p.append(f"entity {eid!r} composite {an!r} needs a non-empty 'parts' list of names")
             elif "parts" in a and a["kind"] not in ("composite", "key", "partial_key"):
                 p.append(f"entity {eid!r} attribute {an!r}: 'parts' only allowed for composite, key or partial_key")
-        if e["weak"]:
+        if eid in subclass_ids:
+            if e["weak"]:
+                p.append(f"entity {eid!r} is a subclass and cannot be weak; it inherits its identity "
+                         "from its superclass")
+            elif keys or partial:
+                p.append(f"subclass {eid!r} must have no 'key' or 'partial_key' attribute; it inherits the "
+                         "key of its superclass")
+        elif e["weak"]:
             if partial != 1 or keys != 0:
                 p.append(f"weak entity {eid!r} needs exactly one 'partial_key' attribute and no 'key' "
                          f"(found {partial} partial, {keys} key)")
@@ -325,6 +351,61 @@ def normalize_model(m):
             p.append(f"weak entity {eid!r} must be the dependent end of exactly one identifying relationship "
                      f"(found {n})")
 
+    spec_ids, parent_of = set(), {}
+    for s in specs:
+        sid, sup = s["id"], s["superclass"]
+        if not ID_RE.match(sid):
+            p.append(f"specialization id {sid!r} must match {ID_RE.pattern}")
+        if sid in spec_ids:
+            p.append(f"duplicate specialization id {sid!r}")
+        spec_ids.add(sid)
+        s.setdefault("disjoint", False)
+        s.setdefault("total", False)
+        if sup not in ent_by_id:
+            p.append(f"specialization {sid!r}: unknown superclass {sup!r}")
+        if len(set(s["subclasses"])) != len(s["subclasses"]):
+            p.append(f"specialization {sid!r}: a subclass is listed twice")
+        for sub in s["subclasses"]:
+            if sub not in ent_by_id:
+                p.append(f"specialization {sid!r}: unknown subclass {sub!r}")
+            elif sub == sup:
+                p.append(f"specialization {sid!r}: {sub!r} cannot be a subclass of itself")
+            elif sub in parent_of:
+                p.append(f"entity {sub!r} is a subclass in more than one specialization; each subclass has "
+                         "exactly one superclass (multiple inheritance is not supported)")
+            else:
+                parent_of[sub] = sup
+    for start in parent_of:  # a hierarchy must not loop back on itself
+        seen, cur = {start}, parent_of[start]
+        while cur in parent_of and cur not in seen:
+            seen.add(cur)
+            cur = parent_of[cur]
+        if cur in seen:
+            p.append(f"specialization hierarchy is cyclic around {start!r}")
+            break
+    for s in specs:
+        da = s.get("defining_attribute")
+        if da is not None and s["superclass"] in ent_by_id:
+            names_up, cur, guard = set(), s["superclass"], 0
+            while cur in ent_by_id and guard < 50:  # the superclass's own and inherited attributes
+                names_up |= {a["name"].strip().lower() for a in ent_by_id[cur]["attributes"]}
+                cur, guard = parent_of.get(cur), guard + 1
+            if da.strip().lower() not in names_up:
+                p.append(f"specialization {s['id']!r}: defining attribute {da!r} must be an attribute of "
+                         f"superclass {s['superclass']!r}")
+        if multi:
+            members = [x for x in [s["superclass"]] + s["subclasses"] if x in ent_by_id]
+            homes = [ent_by_id[x].get("area") for x in members]
+            pages = list(s.get("pages") or [])
+            for pg in pages:
+                if pg not in homes:
+                    p.append(f"specialization {s['id']!r}: page {pg!r} must be the home area of one of its "
+                             f"entities ({sorted(h for h in set(homes) if h)})")
+            for h in homes:  # every member's home page shows the specialization (subclasses need it there)
+                if h and h not in pages:
+                    pages.append(h)
+            s["pages"] = pages
+
     L, _ = C.lang_strings(m["language"])
     prefixes = sorted({"Constraint:", "Rule:", L["constraint"], L["rule"]})
     for n in notes:
@@ -352,6 +433,9 @@ def normalize_model(m):
         for rid in (lay.get("diamonds") or {}):
             if rid not in rel_ids:
                 p.append(f"layout {pg!r}: unknown relationship {rid!r}")
+        for sid in (lay.get("circles") or {}):
+            if sid not in spec_ids:
+                p.append(f"layout {pg!r}: unknown specialization {sid!r}")
     if p:
         raise ModelError(p)
     return m
@@ -547,7 +631,57 @@ def place_attribute_group(page, owner_id, cx, cy, ow, oh, attrs, occupied):
 
 
 # --------------------------------------------------------------------------- page rendering
-def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, spacing, warnings):
+def place_specializations(page, specs, centre, occupied, lay, sx, sy):
+    """Draw each specialization circle between its superclass and its subclasses, plus its connectors.
+    Returns the number of collisions that could not be avoided."""
+    ew, eh = SIZE["entity"]
+    cw = ch = SIZE["specialization"][0]
+    collisions = 0
+    for s in specs:
+        sid, sup, subs = s["id"], s["superclass"], s["subclasses"]
+        (ax, ay) = centre[sup]
+        tx = sum(centre[x][0] for x in subs) / len(subs)
+        ty = sum(centre[x][1] for x in subs) / len(subs)
+        members = {box(*centre[x], ew, eh) for x in [sup] + subs}
+        if sid in (lay.get("circles") or {}):
+            gx, gy = lay["circles"][sid]
+            cx, cy = gx * sx, gy * sy
+        else:
+            vx, vy = tx - ax, ty - ay
+            ln = math.hypot(vx, vy) or 1
+            px, py = -vy / ln, vx / ln
+            best = None
+            for frac in (0.5, 0.4, 0.6, 0.3, 0.7):
+                for k in (0, 1, -1, 2, -2):
+                    x_ = ax + vx * frac + px * k * (cw + 40)
+                    y_ = ay + vy * frac + py * k * (ch + 40)
+                    b = box(x_, y_, cw, ch)
+                    cost = sum(overlaps(b, o) for o in page.boxes)
+                    cost += sum(segment_hits_box(((x_, y_), centre[x]), shrink(o, 2))
+                                for x in [sup] + subs for o in page.boxes if o not in members)
+                    cost += sum(segment_hits_box(sg, shrink(b, 2)) for sg in page.segments)
+                    if best is None or cost < best[0]:
+                        best = (cost, x_, y_)
+                    if cost == 0:
+                        break
+                if best[0] == 0:
+                    break
+            collisions += best[0]
+            _, cx, cy = best
+        page.vertex(f"G_{sid}", "d" if s["disjoint"] else "o", C.SPECIALIZATION, *box(cx, cy, cw, ch))
+        label = esc(s["defining_attribute"]) if s.get("defining_attribute") else None
+        page.edge(f"E_{sup}", f"G_{sid}", C.ISA_TOTAL_EDGE if s["total"] else C.ISA_EDGE, value=label)
+        occupied[sup].append(math.atan2(cy - ay, cx - ax))
+        page.segments.append(((ax, ay), (cx, cy)))
+        for sub in subs:
+            page.edge(f"G_{sid}", f"E_{sub}", C.ISA_EDGE)
+            bx, by = centre[sub]
+            occupied[sub].append(math.atan2(cy - by, cx - bx))
+            page.segments.append(((cx, cy), (bx, by)))
+    return collisions
+
+
+def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, spacing, warnings, specs=()):
     ents = {e["id"]: e for e in m["entities"]}
     sx, sy = lay.get("spacing", spacing)
     positions = dict(lay.get("positions") or {})
@@ -559,6 +693,10 @@ def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, sp
             ids_ = [x["entity"] for x in r["ends"]]
             for a_ in ids_:
                 nbr[a_] += [b_ for b_ in ids_ if b_ != a_]
+        for s in specs:
+            for sub in s["subclasses"]:
+                nbr[s["superclass"]].append(sub)
+                nbr[sub].append(s["superclass"])
         order, seen = [], set()
         for start in sorted(missing, key=lambda e: (-len(nbr[e]), on_page.index(e))):
             if start in seen:
@@ -697,6 +835,8 @@ def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, sp
                       value=esc(label), label_x=0.6, points=pts)
 
     collisions = diamond_collisions
+    if specs:
+        collisions += place_specializations(page, specs, centre, occupied, lay, sx, sy)
     if with_attributes:
         for eid in ent_ids:
             e = ents[eid]
@@ -726,7 +866,8 @@ def render_page(m, page, ent_ids, ref_ids, rels, notes, with_attributes, lay, sp
              f"<br>{L['page_label']}: {esc(page.name)}")
     page.vertex(page.next_id("t"), title, C.TEXT, minx, miny - 110, 520, 50)
     lw = 340
-    page.vertex(page.next_id("l"), L["legend"], C.LEGEND, maxx + 80, miny, lw, legend_height(lw, L["legend"]))
+    legend = L["legend"] + (L["legend_isa"] if specs else "")
+    page.vertex(page.next_id("l"), legend, C.LEGEND, maxx + 80, miny, lw, legend_height(lw, legend))
     nw, nh = SIZE["note"]
     for i, n in enumerate(notes):
         col, row = i % 3, i // 3
@@ -799,25 +940,27 @@ def build(m):
         pg = Page("erd", L["single_page"])
         ids = [e["id"] for e in m["entities"]]
         render_page(m, pg, ids, [], m["relationships"], m["notes"], True,
-                    m["layout"].get("main", {}), DETAIL_SPACING, warnings)
+                    m["layout"].get("main", {}), DETAIL_SPACING, warnings, m.get("specializations", []))
         pages.append(pg)
     else:
         ov = Page("overview", L["overview"])
         render_page(m, ov, [e["id"] for e in m["entities"]], [], m["relationships"], m["notes"],
-                    False, m["layout"].get("overview", {}), OVERVIEW_SPACING, warnings)
+                    False, m["layout"].get("overview", {}), OVERVIEW_SPACING, warnings, m.get("specializations", []))
         pages.append(ov)
         for i, a in enumerate(areas, start=2):
             pg = Page(a["id"], f"{i} - {a['name']}")
             home = [e["id"] for e in m["entities"] if e["area"] == a["id"]]
             rels = [r for r in m["relationships"] if a["id"] in r["pages"]]
+            specs = [s for s in m.get("specializations", []) if a["id"] in s["pages"]]
             refs = []
-            for r in rels:
-                for e_ in r["ends"]:
-                    if e_["entity"] not in home and e_["entity"] not in refs:
-                        refs.append(e_["entity"])
+            members = [e_["entity"] for r in rels for e_ in r["ends"]]
+            members += [x for s in specs for x in [s["superclass"]] + s["subclasses"]]
+            for x in members:
+                if x not in home and x not in refs:
+                    refs.append(x)
             notes = [n for n in m["notes"] if a["id"] in n["pages"]]
             render_page(m, pg, home, refs, rels, notes, True, m["layout"].get(a["id"], {}),
-                        DETAIL_SPACING, warnings)
+                        DETAIL_SPACING, warnings, specs)
             pages.append(pg)
     mx = ET.Element("mxfile", host="app.diagrams.net", agent="db-erd-chen skill",
                     version="24.0.0")
@@ -837,6 +980,8 @@ def summary_md(m, drawio_name, pages):
     L, _ = C.lang_strings(m.get("language"))
     ents = {e["id"]: e for e in m["entities"]}
     area_name = {a["id"]: a["name"] for a in m["areas"]}
+    specs = m.get("specializations", [])
+    parent = {sub: sp["superclass"] for sp in specs for sub in sp["subclasses"]}
     out = [f"# {md(m['project'])} — {L['summary']}", "",
            f"- {L['diagram']}: `{drawio_name}` ({L['uncompressed']})",
            f"- {L['pages']}: {', '.join(p.name for p in pages)}"]
@@ -859,6 +1004,9 @@ def summary_md(m, drawio_name, pages):
                 label += f" [{L['kinds'].get(a['kind'], a['kind'])}]"
             attrs.append(label)
         key_label = f"{key} ({L['partial_key']})" if e["weak"] else key
+        if e["id"] in parent:
+            kind = L["subclass_of"].format(ents[parent[e["id"]]]["name"])
+            key_label = L["inherited"].format(ents[parent[e["id"]]]["name"])
         home = area_name.get(e.get("area"), pages[0].name) if len(m["areas"]) >= 2 else pages[0].name
         out.append(f"| {md(e['name'])} | {kind} | {md(key_label)} | {md(', '.join(attrs)) or '—'} | {md(home)} |")
     out += ["", f"## {L['relationships']} ({len(m['relationships'])})", "",
@@ -877,6 +1025,14 @@ def summary_md(m, drawio_name, pages):
         name = r["name"] + (f" ({L['identifying']})" if r["identifying"] else "")
         attrs = ", ".join(a["name"] for a in r["attributes"]) or "—"
         out.append(f"| {md(name)} | {md(' — '.join(ends))} | {ratio} | {md(attrs)} |")
+    if specs:
+        out += ["", f"## {L['specializations']} ({len(specs)})", "", L["isa_header"], "|---|---|---|---|---|"]
+        for sp in specs:
+            subs = ", ".join(ents[x]["name"] for x in sp["subclasses"])
+            dis = L["disjoint"] if sp["disjoint"] else L["overlapping"]
+            comp = L["total"] if sp["total"] else L["partial"]
+            out.append(f"| {md(ents[sp['superclass']]['name'])} | {md(subs)} | {dis} | {comp} | "
+                       f"{md(sp.get('defining_attribute') or '—')} |")
     out += ["", f"## {L['rules']}", ""]
     out += [f"- {md(n['text'])}" for n in m["notes"]] or [f"- {L['none_rules']}"]
     out += ["", f"## {L['assumptions']}", ""]
@@ -939,7 +1095,7 @@ def main(argv=None):
         print(f"ERROR: internal renderer error ({type(ex).__name__}: {ex}). The model passed validation; "
               "please report this with the model file.", file=sys.stderr)
         return 1
-    if len(model["entities"]) > 1 and not model["relationships"]:
+    if len(model["entities"]) > 1 and not model["relationships"] and not model.get("specializations"):
         warnings.append("model has several entities but no relationships; every entity must be reachable "
                         "(the validator will fail unless isolation is confirmed with --allow-isolated)")
     if args.check:

@@ -14,6 +14,7 @@ The renderer rejects a model that breaks a notation rule, and lists every proble
 | `areas` | no | Subject areas. **2 or more areas → multi-page file** (`1 - Overview` + one page per area). 0–1 areas → a single page `1 - Conceptual ERD` |
 | `entities` | yes | List of entities (see below) |
 | `relationships` | yes (an empty list is only valid for a 1-entity model; otherwise the validator fails unless isolation is confirmed) | List of relationships |
+| `specializations` | no | EER specializations / generalizations (purple `d`/`o` circles), see below |
 | `notes` | no | Constraint / rule notes (pink notes) |
 | `assumptions` | no | Confirmed assumptions and decisions, each with its confirmation source |
 | `open_questions` | no | Unanswered questions. They are listed in the summary and are **never** drawn as rules |
@@ -74,6 +75,29 @@ versions unless the concept itself changed. Stable ids keep git diffs meaningful
   of the first end. Each listed page must be the home page of one of its entities. The relationship
   always appears on the Overview too.
 
+## Specialization (EER)
+
+```json
+{"id": "personrole", "superclass": "person", "subclasses": ["student", "employee"],
+ "disjoint": false, "total": true, "defining_attribute": "Person type"}
+```
+
+- `superclass`, `subclasses`: entity ids. A specialization needs at least one subclass.
+- `disjoint`: `true` draws `d` (an instance is in at most one subclass); `false` (default) draws `o`
+  (overlapping). Use `true` **only** for a confirmed rule.
+- `total`: `true` draws a double line from the superclass to the circle (every superclass instance is in
+  at least one subclass). Default `false`. Use it **only** for a confirmed rule.
+- `defining_attribute` (optional): for an attribute-defined specialization, the name of an attribute of
+  the superclass (its own or inherited). It is written on the superclass line.
+- A subclass entity has **no `key` or `partial_key`** (it inherits the superclass key) and is never
+  `weak`. Give it only its specific attributes. Its relationships are ordinary relationships.
+- Each entity is a subclass in **at most one** specialization (no multiple inheritance), and hierarchies
+  cannot loop. A superclass may have several specializations, and a subclass may be specialized again.
+- `pages` (multi-page only): optional. The specialization is always drawn on the Overview and on the
+  home page of the superclass and of every subclass; members from other areas appear as reference
+  entities.
+- Specialization links make entities reachable: a subclass needs no relationship of its own.
+
 ## Notes, assumptions, open questions
 
 ```json
@@ -102,7 +126,8 @@ versions unless the concept itself changed. Stable ids keep git diffs meaningful
 "layout": {
   "main":     {"positions": {"user": [0, 0], "team": [1.6, 0]}},
   "overview": {"positions": {...}, "spacing": [380, 300]},
-  "sales":    {"positions": {...}, "diamonds": {"places": [0.5, 0.2]}, "columns": 3}
+  "sales":    {"positions": {...}, "diamonds": {"places": [0.5, 0.2]}, "circles": {"partyrole": [1, 0.5]},
+               "columns": 3}
 }
 ```
 
@@ -111,6 +136,8 @@ versions unless the concept itself changed. Stable ids keep git diffs meaningful
   560×440 px and Overview cells 380×300 px; override them with `spacing: [x, y]`.
 - `diamonds`: relationship id → `[column, row]` to move a diamond off its default spot (the midpoint of
   its entities). Use it to route around an entity instead of passing through it.
+- `circles`: specialization id → `[column, row]` to move a specialization circle. By default it sits
+  halfway between the superclass and the centre of its subclasses.
 - Entities without a position are placed automatically on a square grid, and the renderer prints a
   warning when it does that.
 - Attributes are fanned automatically, in the free directions around their entity or diamond.
@@ -120,7 +147,7 @@ versions unless the concept itself changed. Stable ids keep git diffs meaningful
 1. Put the most connected entity in the centre, and its neighbours in adjacent cells (orthogonal or
    diagonal). Entities linked by a relationship should be **adjacent**, so that no line has to cross
    a cell.
-2. Keep a weak entity next to its owner.
+2. Keep a weak entity next to its owner. Put subclasses in the row below their superclass, side by side.
 3. Leave an empty neighbouring cell next to any entity that has a recursive relationship, or 5 or more
    attributes.
 4. Two relationships between the same pair are offset automatically. Do not stack them by hand.

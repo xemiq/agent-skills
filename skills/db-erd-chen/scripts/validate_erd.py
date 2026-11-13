@@ -18,6 +18,10 @@ Checks (ERROR = must fix, WARNING = review and justify):
              multi-page: Overview with all entities/relationships/notes and no attributes,
              exactly one home page per entity, reference entities without attributes,
              every relationship on at least one detail page; every page has a title and legend
+  eer        specialization circles are labelled d or o, have exactly one superclass line (single or
+             double) and at least one single subclass line; subclasses are strong entities without
+             their own key (they inherit it); each subclass has one superclass; multi-page: the
+             Overview and the detail pages show the same specializations
   layout     no overlapping shapes, no connector passing through a shape
 Exit codes: 0 no errors, 1 errors found, 2 file unreadable / not XML.
 Standard library only.
@@ -88,6 +92,8 @@ def classify_vertex(st, value):
         return "legend" if st.get("strokeColor") == "#999999" and st.get("fillColor") == "#fafafa" else "title"
     if st.get("shape") == "note":
         return "note"
+    if st.get("fillColor") == "#e1d5e7" and ("ellipse" in st or st.get("shape") == "ellipse"):
+        return "specialization"
     if st.get("shape") == "rhombus" or "rhombus" in st:
         return "id_relationship" if st.get("double") == "1" else "relationship"
     if "ellipse" in st or st.get("shape") in ("ellipse", "doubleEllipse"):
@@ -112,6 +118,8 @@ def classify_vertex(st, value):
 
 
 def classify_edge(st):
+    if st.get("strokeColor") == "#9673a6":
+        return "isa_total_edge" if st.get("shape") == "link" else "isa_edge"
     if st.get("shape") == "link":
         return "total_edge"
     if st.get("strokeColor") == "#888888":
@@ -132,6 +140,7 @@ def check_style(rep, page, cid, kind, style, catalog_style):
 ENTITY_KINDS = {"entity", "weak_entity", "ref_entity", "ref_weak_entity"}
 REL_KINDS = {"relationship", "id_relationship"}
 ATTR_KINDS = {"attribute", "key_attribute", "partial_key", "multivalued", "derived"}
+ISA_EDGES = {"isa_edge", "isa_total_edge"}
 
 
 def inside(kind, g, x, y, shrink=2.0):
@@ -143,7 +152,7 @@ def inside(kind, g, x, y, shrink=2.0):
     dx, dy = abs(x - cx) / hw, abs(y - cy) / hh
     if kind in REL_KINDS:
         return dx + dy < 1
-    if kind in ATTR_KINDS or kind == "sub_attribute":
+    if kind in ATTR_KINDS or kind in ("sub_attribute", "specialization"):
         return dx * dx + dy * dy < 1
     return dx < 1 and dy < 1
 
@@ -274,7 +283,13 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
         if e["source"] not in verts or e["target"] not in verts:
             continue
         sk, tk = verts[e["source"]]["kind"], verts[e["target"]]["kind"]
-        if e["kind"] == "attr_edge":
+        if e["kind"] in ISA_EDGES or "specialization" in (sk, tk):
+            if e["kind"] not in ISA_EDGES or not ((sk in ENTITY_KINDS and tk == "specialization") or
+                                                  (sk == "specialization" and tk in ENTITY_KINDS)):
+                rep.err(pname, f"specialization connector {eid} must use the specialization line style and go "
+                               f"from the superclass to the circle, or from the circle to a subclass; "
+                               f"got {e['kind']} {sk} -> {tk}")
+        elif e["kind"] == "attr_edge":
             ok = (sk in ATTR_KINDS and (tk in ENTITY_KINDS or tk in REL_KINDS)) or \
                  (sk == "sub_attribute" and tk in ATTR_KINDS)
             if not ok:
@@ -288,10 +303,15 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
     name_of = {cid: plain(v["value"]) for cid, v in verts.items()}
     entities = {cid: v for cid, v in verts.items() if v["kind"] in ENTITY_KINDS}
     rels = {cid: v for cid, v in verts.items() if v["kind"] in REL_KINDS}
+    circles = {cid: v for cid, v in verts.items() if v["kind"] == "specialization"}
     for cid, v in list(entities.items()) + list(rels.items()) + \
             [(c, v) for c, v in verts.items() if v["kind"] in ATTR_KINDS | {"sub_attribute"}]:
         if not name_of[cid]:
             rep.err(pname, f"{cid} ({v['kind']}) has no label")
+    for cid in circles:
+        if name_of[cid] not in ("d", "o"):
+            rep.err(pname, f"specialization {cid} must be labelled 'd' (disjoint) or 'o' (overlapping); "
+                           f"got {name_of[cid]!r}")
     ent_names = {}
     for cid in entities:
         n = name_of[cid].lower()
@@ -384,6 +404,44 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
             if verts[a]["kind"] in ("key_attribute", "partial_key"):
                 rep.err(pname, f"relationship {rname!r} cannot have a key attribute ({name_of[a]!r})")
 
+    # specializations (EER): one superclass line, subclass lines, no own key on subclasses
+    subclass_of, isa_sigs = {}, []
+    for gid in circles:
+        sup_e = [e for e in edges.values() if e["kind"] in ISA_EDGES and e["target"] == gid
+                 and e["source"] in entities]
+        sub_e = [(eid, e) for eid, e in edges.items() if e["kind"] in ISA_EDGES and e["source"] == gid
+                 and e["target"] in entities]
+        if len(sup_e) != 1 or not sub_e:
+            rep.err(pname, f"specialization {gid} needs exactly one superclass line (superclass -> circle) and at "
+                           f"least one subclass line (circle -> subclass); has {len(sup_e)} and {len(sub_e)}")
+            continue
+        sup = sup_e[0]["source"]
+        subs = [e["target"] for _, e in sub_e]
+        for eid, e in sub_e:
+            if e["kind"] == "isa_total_edge":
+                rep.err(pname, f"subclass line {eid} must be a single line; totality is drawn on the superclass line")
+            if plain(e["value"]):
+                rep.err(pname, f"subclass line {eid} must have no label (the defining attribute goes on the "
+                               "superclass line)")
+            if verts[e["target"]]["kind"] in ("weak_entity", "ref_weak_entity"):
+                rep.err(pname, f"subclass {name_of[e['target']]!r} cannot be a weak entity")
+        if sup in subs or len(set(subs)) != len(subs):
+            rep.err(pname, f"specialization {gid}: a subclass is repeated or is its own superclass")
+        for sub in subs:
+            if sub in subclass_of and subclass_of[sub] != gid:
+                rep.err(pname, f"entity {name_of[sub]!r} is a subclass in two specializations; each subclass has "
+                               "exactly one superclass")
+            subclass_of[sub] = gid
+            adjacency[sup].add(sub)
+            adjacency[sub].add(sup)
+        da = plain(sup_e[0]["value"])
+        if da and verts[sup]["kind"] in ("entity", "weak_entity") and not is_overview and \
+                da.lower() not in {name_of[a].lower() for a in attrs_of.get(sup, [])}:
+            rep.warn(pname, f"defining attribute {da!r} of specialization {gid} is not an attribute of "
+                            f"{name_of[sup]!r} on this page (fine only if it is inherited)")
+        isa_sigs.append((name_of[sup].lower(), name_of[gid], sup_e[0]["kind"] == "isa_total_edge",
+                         tuple(sorted(name_of[x].lower() for x in subs)), da.lower()))
+
     # entities: keys, references, naming
     for cid, v in entities.items():
         n = name_of[cid]
@@ -401,10 +459,15 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
                 if cid not in identified:
                     rep.err(pname, f"weak entity {n!r} is not the dependent end of an identifying relationship "
                                    "(double diamond, double line) on its home page")
+            elif cid in subclass_of:
+                if kinds.count("key_attribute") or kinds.count("partial_key"):
+                    rep.err(pname, f"subclass {n!r} must not have its own key; it inherits the key of its "
+                                   "superclass")
             else:
                 if kinds.count("key_attribute") != 1 or kinds.count("partial_key"):
                     rep.err(pname, f"entity {n!r} needs exactly one underlined key attribute "
-                                   f"(found {kinds.count('key_attribute')})")
+                                   f"(found {kinds.count('key_attribute')}; a subclass instead needs its "
+                                   "specialization drawn on its home page)")
         words = n.split()
         if words and any(w[0].isalpha() and not w[0].isupper() and (i == 0 or w.lower() not in SMALL_WORDS)
                          for i, w in enumerate(words)):
@@ -445,6 +508,7 @@ def analyse_page(rep, diagram, is_overview, all_entity_names):
         "entities": {name_of[c].lower(): (verts[c]["kind"], bool(attrs_of.get(c))) for c in entities},
         "display": {name_of[c].lower(): name_of[c] for c in entities},
         "rels": rel_sigs,
+        "isas": isa_sigs,
         "adjacency": {name_of[c].lower(): {name_of[u].lower() for u in s} for c, s in adjacency.items()},
         "has_attrs": any(v["kind"] in ATTR_KINDS | {"sub_attribute"} for v in verts.values()),
         "notes": {name_of[c] for c, v in verts.items() if v["kind"] == "note"},
@@ -537,6 +601,15 @@ def validate(path, allow_isolated=()):
         for r in det_rels:
             if r not in set(ov["rels"]):
                 rep.err(ov["name"], f"relationship {r[0]!r} between {list(r[1])} is missing from the Overview")
+        det_isas = {g for d in details for g in d["isas"]}
+        for g in ov["isas"]:
+            if g not in det_isas:
+                rep.err("file", f"specialization of {g[0]!r} into {list(g[3])} is not on any detail page "
+                                "(or differs from it)")
+        for g in det_isas:
+            if g not in set(ov["isas"]):
+                rep.err(ov["name"], f"specialization of {g[0]!r} into {list(g[3])} is missing from the Overview "
+                                    "(or differs from it)")
         for d in details:
             for t in d["notes"] - ov["notes"]:
                 rep.err(ov["name"], f"note from {d['name']!r} is not repeated on the Overview: {t[:50]!r}")

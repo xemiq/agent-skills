@@ -10,9 +10,11 @@ How to extend and maintain the `db-erd-chen` skill. SKILL.md §9 points to this 
   `erd_catalog_crowsfoot.py`) and a `"notation"` field in the model. Keep the model notation-neutral,
   which it already is: entities, ends with card/total. Add a matching rule set to the validator. Chen
   stays the default.
-- **EER features** (specialization/generalization, categories): add `"specializations"` to the model
-  and an `isa` triangle style to the catalog. Until then they are modeled as described in
-  `references/source-mapping.md` (the inheritance row).
+- **EER features**: specialization / generalization is supported since 0.3.0 (`"specializations"` in
+  the model, the `d`/`o` circle in the catalog, the `eer` checks in the validator). Not supported yet:
+  multiple inheritance (shared subclasses) and union types / categories (`u` circle). Adding them means
+  relaxing the single-superclass rule in `render_erd.normalize_model`, deciding how a shared subclass
+  inherits its key, and adding the matching validator rules and tests (see `SpecializationTests`).
 - **Other export formats** (SVG/PNG/PDF): export from the `.drawio` with the diagrams.net desktop CLI
   (`drawio -x -f png …`) as an *additional* artifact. The `.drawio` file stays the deliverable.
   Mermaid/PlantUML exporters, if they are ever wanted, belong in a separate skill so this one keeps

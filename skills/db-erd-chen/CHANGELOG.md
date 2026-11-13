@@ -3,6 +3,32 @@
 Semantic versioning: MAJOR = output contract or breaking model-schema change; MINOR = new
 capabilities or checks; PATCH = fixes.
 
+## 0.3.0 — 2026-11-12
+- New: EER specialization / generalization, in the Elmasri–Navathe style. A purple circle labelled `d`
+  (disjoint) or `o` (overlapping) sits between the superclass and its subclasses. A double superclass
+  line means a total specialization, and an optional defining attribute is written on that line.
+  Multi-level hierarchies and several specializations per superclass are supported. Each subclass has
+  exactly one superclass. Multiple inheritance and union types (categories) are not supported yet.
+- Model: new optional `specializations` list and `layout.<page>.circles`. Subclasses have no key (they
+  inherit it) and cannot be weak. The renderer rejects multiple inheritance, cycles, unknown entities and
+  a defining attribute that the superclass does not have. Models without specializations render
+  byte-identically to 0.2.2.
+- Renderer: places the circle between the superclass and its subclasses, avoiding shapes and lines.
+  Specialization links count for reachability. Multi-page files show each specialization on the
+  Overview and on the home page of every member. The legend gets four extra lines, only on pages that
+  show a specialization. The summary has a Specializations section, and subclasses show "Subclass of X"
+  with the key "inherited from X". Spanish is translated.
+- Validator: new `eer` checks: `d`/`o` labels, one superclass line, single unlabelled subclass lines,
+  no key or weak subclass, one superclass per subclass, and Overview vs detail page consistency.
+- Clarification: new blocking class B11 (specialization or type attribute, which cannot be delegated)
+  and non-blocking N7 (unstated disjointness/completeness → overlapping and partial, never `d` or
+  total by default). The draft shows each specialization with its constraints.
+- Guide: new §2.10 "Specialization and generalization (EER)", plus symbols, style catalog rows, the
+  `G_` id prefix, checklist and glossary entries. Source mapping: wording, single-table, class-table
+  and concrete-table inheritance, and ORM inheritance declarations. The old "1:1 `Is a` relationship"
+  workaround is replaced.
+- README: version and pin example updated (they still said 0.2.1).
+
 ## 0.2.2 — 2026-11-12
 - SKILL.md restructured for progressive disclosure (495 → 353 lines), with no change in
   behaviour or in the model and output contract. The metadata section (it repeated the front

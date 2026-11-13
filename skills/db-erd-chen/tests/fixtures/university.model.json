@@ -1,0 +1,155 @@
+{
+  "project": "University",
+  "entities": [
+    {
+      "id": "person",
+      "name": "Person",
+      "attributes": [
+        {
+          "name": "Email",
+          "kind": "key"
+        },
+        {
+          "name": "Full name"
+        },
+        {
+          "name": "Person type"
+        }
+      ]
+    },
+    {
+      "id": "student",
+      "name": "Student",
+      "attributes": [
+        {
+          "name": "Enrollment year"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "name": "Employee",
+      "attributes": [
+        {
+          "name": "Salary"
+        },
+        {
+          "name": "Hire date"
+        }
+      ]
+    },
+    {
+      "id": "professor",
+      "name": "Professor",
+      "attributes": [
+        {
+          "name": "Rank"
+        }
+      ]
+    },
+    {
+      "id": "course",
+      "name": "Course",
+      "attributes": [
+        {
+          "name": "Course code",
+          "kind": "key"
+        },
+        {
+          "name": "Title"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "takes",
+      "name": "Takes",
+      "ends": [
+        {
+          "entity": "student",
+          "card": "M"
+        },
+        {
+          "entity": "course",
+          "card": "N"
+        }
+      ]
+    },
+    {
+      "id": "teaches",
+      "name": "Teaches",
+      "ends": [
+        {
+          "entity": "professor",
+          "card": "1"
+        },
+        {
+          "entity": "course",
+          "card": "N",
+          "total": true
+        }
+      ]
+    }
+  ],
+  "specializations": [
+    {
+      "id": "personrole",
+      "superclass": "person",
+      "subclasses": [
+        "student",
+        "employee"
+      ],
+      "disjoint": false,
+      "total": true,
+      "defining_attribute": "Person type"
+    },
+    {
+      "id": "employeekind",
+      "superclass": "employee",
+      "subclasses": [
+        "professor"
+      ]
+    }
+  ],
+  "layout": {
+    "main": {
+      "positions": {
+        "person": [
+          1,
+          0
+        ],
+        "student": [
+          0,
+          1
+        ],
+        "employee": [
+          2,
+          1
+        ],
+        "professor": [
+          2,
+          2
+        ],
+        "course": [
+          0,
+          2.2
+        ]
+      }
+    }
+  },
+  "source": "Test fixture: EER specialization (v0.3.0)",
+  "assumptions": [
+    {
+      "text": "A person can be both a student and an employee.",
+      "confirmed_by": "user"
+    },
+    {
+      "text": "Every person is a student or an employee (total).",
+      "confirmed_by": "user"
+    }
+  ],
+  "open_questions": [
+    "Is every employee a professor? Drawn as partial specialization."
+  ]
+}

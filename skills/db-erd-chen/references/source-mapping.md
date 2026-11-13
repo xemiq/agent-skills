@@ -28,6 +28,12 @@ the result is **derived** (it may be recorded with `confirmed_by: "schema"` or `
 | Unclear whether a property holds one value or several | — | **Question** (B10). Never assume single-valued |
 | Values with their own properties or history (e.g. price history with dates) | Entity, or a weak entity | **Question** if unclear |
 | Limits, ranges, either/or, conditional rules | `Constraint:` / `Rule:` note | Derived only if stated. Never invented |
+| Subtypes: "X is a kind of Y", "there are two types of Y: A and B", "students and employees are people", when the subtypes have **their own** attributes or relationships | Specialization of Y (superclass) into A, B (subclasses) | Derived (`stated`). Subtypes with nothing of their own → `Type` attribute + `Rule:` note. Unclear → **question** (B11) |
+| "a Y is either an A or a B", "cannot be both" | `disjoint: true` (`d`) | Derived (`stated`) |
+| "a Y can be both an A and a B" | `disjoint: false` (`o`) | Derived (`stated`) |
+| "every Y is an A or a B", "must be one of" | `total: true` (double superclass line) | Derived (`stated`) |
+| "the type is decided by its <attribute>" | `defining_attribute` | Derived (`stated`) |
+| Disjointness or completeness not stated | `o`, partial (single line) | Default (N7), never `d` or total |
 
 ## 2. SQL DDL / migrations (any dialect)
 
@@ -52,7 +58,9 @@ the result is **derived** (it may be recorded with `confirmed_by: "schema"` or `
 | Generated/computed columns, view aggregates, totals kept by triggers | Derived attribute |
 | `CHECK` / enum constraints with business meaning | `Constraint:` note (`schema`) |
 | Polymorphic FK (`owner_type` + `owner_id`) | One relationship per target + exclusive-OR `Constraint:` note. **Question**: confirm the targets |
-| Inheritance (single-table `type` column, class-table 1:1 PK=FK) | **Question.** Default: one entity with a `Type` attribute, plus a `Rule:` note listing the types. If subtypes have their own attributes or relationships: subtype entities linked by a 1:1 `Is a` relationship (total on the subtype side), plus a `Constraint:` note about disjoint/overlapping subtypes |
+| Single-table inheritance (one table, a `type` column, nullable subtype-only columns or FKs) | If subtype-only columns or FKs exist: specialization, with the `type` column as the superclass attribute in `defining_attribute`. A NOT NULL `type` holds one value per row → `disjoint` (`schema`). `total` only if the column is NOT NULL **and** every allowed value has a subclass. Without subtype-only columns: `Type` attribute + `Rule:` note listing the values |
+| Class-table inheritance (a subtype table whose PK is also the FK to the parent's PK) | Specialization: parent = superclass, subtype tables = subclasses without a key of their own. Such schemas do not enforce disjointness or completeness → `o`, partial (N7), and ask |
+| Concrete-table inheritance (one table per subtype, repeating the common columns, no parent table) | **Question** (B11): generalize into a superclass holding the common attributes, or keep separate entities |
 | Indexes, partitions, triggers, sequences, storage, `ON DELETE`, grants | Omitted |
 | Technical columns (`created_at`, `updated_at`, `deleted_at`, `version`, `row_version`, sync flags, tenant id) | Omitted, and listed in the model's `omitted` field (printed in the summary). Include one only if the user confirms it has business meaning |
 | Data types, lengths, defaults | Omitted |
@@ -74,6 +82,19 @@ Apply section 2, reading the ORM's declarations:
 | GORM (Go) | struct tags `foreignKey`, `many2many`, `not null`, `uniqueIndex` |
 | Mongoose / document stores | `ref` → relationship. Embedded sub-document arrays → weak entity or multivalued/composite attribute (**question** if they have their own identity) |
 
+**Inheritance in ORMs** maps to the inheritance rows of section 2:
+
+| ORM | Specialization (superclass + subclasses) | Not a specialization (shared columns only) |
+|---|---|---|
+| JPA / Hibernate | `@Inheritance(strategy = SINGLE_TABLE / JOINED / TABLE_PER_CLASS)`, `@DiscriminatorColumn` (defining attribute) | `@MappedSuperclass` |
+| Django | Multi-table inheritance (a model subclassing a concrete model) | `class Meta: abstract = True`, proxy models |
+| Rails | STI: subclasses of a model with a `type` column | Concerns / modules |
+| Entity Framework | TPH (`HasDiscriminator`), TPT, TPC | Base classes not mapped as entities |
+| SQLAlchemy | `polymorphic_on` / `polymorphic_identity` | Mixins |
+| TypeORM | `@TableInheritance` + `@ChildEntity` | Abstract base classes / embedded entities |
+
+Prisma has no inheritance; look for the patterns of section 2 in the schema instead.
+
 Validation rules in application code (e.g. `presence: true`) count as `schema` confirmation only when
 they are enforced for every write path. If you are unsure, ask.
 
@@ -84,6 +105,8 @@ they are enforced for every write path. If you are unsure, ask.
 - A `.drawio` file without a model: decompress it if needed (`validate_erd.py --decompress`), read
   the entities, attributes and relationships back from the shapes, rebuild the model, then apply the
   changes.
+- Older models from this skill may show subtypes as 1:1 `Is a` relationships. When you update such a
+  model, propose turning them into a specialization (B11) instead of carrying them forward silently.
 - Images or PDFs of diagrams: read them only if you can view images. Otherwise ask for a text source.
   Treat what you read as a draft to confirm with the user.
 
